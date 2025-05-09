@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import type { GridData } from '@/lib/tripuzzle/types';
+import type { GridData, Tile as TileType } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { Tile } from './Tile';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,17 @@ interface GridDisplayProps {
   gridData: GridData;
   onRowSlide: (rowIndex: number, direction: 'left' | 'right') => void;
   isProcessingMove: boolean;
+  onTileClick: (r: number, c: number) => void;
+  selectedTileCoords: { r: number; c: number } | null;
 }
 
-export function GridDisplay({ gridData, onRowSlide, isProcessingMove }: GridDisplayProps) {
+export function GridDisplay({ 
+  gridData, 
+  onRowSlide, 
+  isProcessingMove,
+  onTileClick,
+  selectedTileCoords 
+}: GridDisplayProps) {
   const TILE_BASE_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   
@@ -24,11 +32,10 @@ export function GridDisplay({ gridData, onRowSlide, isProcessingMove }: GridDisp
   const containerWidth = numGridCols * (TILE_BASE_WIDTH / 2) + (TILE_BASE_WIDTH / 2);
   const containerHeight = numGridRows * (TILE_HEIGHT * 0.75) + (TILE_HEIGHT * 0.25);
   
-  const slideButtonSize = TILE_HEIGHT * 0.6; // Adjust button size relative to tile height
+  const slideButtonSize = TILE_HEIGHT * 0.6;
 
   return (
     <div className="flex items-center justify-center space-x-1 my-4">
-      {/* Left Slide Buttons Column */}
       <div className="flex flex-col justify-around" style={{ height: `${containerHeight}px`, minWidth: `${slideButtonSize + 4}px`}}>
         {gridData.map((_, r) => (
           <Button
@@ -46,7 +53,6 @@ export function GridDisplay({ gridData, onRowSlide, isProcessingMove }: GridDisp
         ))}
       </div>
 
-      {/* Grid Area */}
       <div 
         className="relative p-1 bg-black rounded-lg shadow-inner"
         role="grid" 
@@ -63,6 +69,7 @@ export function GridDisplay({ gridData, onRowSlide, isProcessingMove }: GridDisp
             }
             const tileY = r * (TILE_HEIGHT * 0.75);
             const tileX = c * (TILE_BASE_WIDTH / 2);
+            const isSelected = selectedTileCoords?.r === r && selectedTileCoords?.c === c;
             
             return (
               <div
@@ -73,13 +80,15 @@ export function GridDisplay({ gridData, onRowSlide, isProcessingMove }: GridDisp
                   top: `${tileY}px`,
                   width: `${TILE_BASE_WIDTH}px`, 
                   height: `${TILE_HEIGHT}px`,
-                  transition: 'left 0.2s ease, top 0.2s ease', // Smooth transition for falling
+                  transition: 'left 0.2s ease, top 0.2s ease', 
                 }}
                 role="gridcell"
                 aria-label={`Tile at data row ${r}, data col ${c} with color ${tileData.color}`}
               >
                 <Tile
                   tile={tileData}
+                  onClick={() => onTileClick(r,c)}
+                  isSelected={isSelected}
                 />
               </div>
             );
@@ -87,7 +96,6 @@ export function GridDisplay({ gridData, onRowSlide, isProcessingMove }: GridDisp
         })}
       </div>
 
-      {/* Right Slide Buttons Column */}
        <div className="flex flex-col justify-around" style={{ height: `${containerHeight}px`, minWidth: `${slideButtonSize + 4}px` }}>
         {gridData.map((_, r) => (
           <Button

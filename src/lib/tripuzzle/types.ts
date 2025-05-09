@@ -7,6 +7,7 @@ export interface Tile {
   orientation: 'up' | 'down'; // Added to define triangle orientation
   isNew?: boolean; 
   isMatched?: boolean;
+  isSelected?: boolean; // Added for UI indication of selected tile
 }
 
 export type GridRow = (Tile | null)[];
@@ -38,6 +39,7 @@ export const GAME_SETTINGS = {
   SLIDE_ANIMATION_DURATION: 200, // ms
   MATCH_ANIMATION_DURATION: 300, // ms
   SPAWN_ANIMATION_DURATION: 300, // ms
+  SWAP_ANIMATION_DURATION: 150, // ms for tile swap visual
   TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH,
   TILE_HEIGHT: TARGET_TILE_HEIGHT,
 } as const;
@@ -58,3 +60,4 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
 };
+
