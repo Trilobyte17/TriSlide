@@ -31,7 +31,7 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
       onClick={onClick}
       className={cn(
         "select-none transition-all duration-300 ease-out cursor-pointer",
-        "focus:outline-none", // Added to remove default browser focus outline
+        "focus:outline-none", 
         tile.isNew && "animate-tile-spawn",
         tile.isMatched && "animate-tile-vanish",
         "hover:opacity-80 hover:scale-105"
@@ -61,14 +61,26 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         points={points}
         style={{
           fill: tileStyle.backgroundColor,
-          stroke: isSelected ? 'hsl(var(--accent))' : '#000000',
-          strokeWidth: isSelected ? 2 : 0.5 // Thicker stroke for selected tiles
+          stroke: '#000000', // Always use thin black border for the base tile
+          strokeWidth: 0.5 
         }}
       />
+      {/* Glossy overlay */}
       <polygon
         points={points}
         style={{ fill: `url(#${uniqueGlossyId})` }}
       />
+      {/* Explicit triangular selection highlight */}
+      {isSelected && (
+        <polygon
+          points={points}
+          style={{
+            fill: 'none', // Selection highlight has no fill
+            stroke: 'hsl(var(--accent))', // Accent color for selection
+            strokeWidth: 2 // Stroke width for the selection highlight
+          }}
+        />
+      )}
     </svg>
   );
 }
