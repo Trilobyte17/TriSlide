@@ -2,16 +2,24 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { GameState, Tile as TileType, GridData } from '@/lib/tripuzzle/types';
+import type { GameState, GridData } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
-import { initializeGrid, addInitialTiles, performMerge, checkGameOver, applyGravityAndSpawn } from '@/lib/tripuzzle/engine';
+import { 
+  initializeGrid, 
+  addInitialTiles, 
+  slideRow,
+  findAndMarkMatches,
+  removeMatchedTiles,
+  applyGravityAndSpawn,
+  checkGameOver 
+} from '@/lib/tripuzzle/engine';
 import { GridDisplay } from '@/components/tripuzzle/GridDisplay';
 import { GameControls } from '@/components/tripuzzle/GameControls';
 import { GameOverDialog } from '@/components/tripuzzle/GameOverDialog';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button'; // For restore prompt
+import { Button } from '@/components/ui/button';
 
-const LOCAL_STORAGE_KEY = 'triPuzzleGameState_v1';
+const LOCAL_STORAGE_KEY = 'triPuzzleGameState_colorMatch_v1'; // New key for new game type
 
 export default function TriPuzzlePage() {
   const { toast } = useToast();
@@ -22,31 +30,42 @@ export default function TriPuzzlePage() {
     isGameStarted: false,
     isLoading: true,
   });
-  const [draggedTile, setDraggedTile] = useState<TileType | null>(null);
+  // draggedTile state is removed as we are dragging rows now
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [isProcessingMove, setIsProcessingMove] = useState(false);
+
 
   const createNewGame = useCallback(() => {
+    setIsProcessingMove(true);
     const initialGrid = initializeGrid(GAME_SETTINGS.NUM_ROWS);
     const gridWithTiles = addInitialTiles(initialGrid, GAME_SETTINGS.INITIAL_TILES_COUNT);
+    
+    // Initial check for matches and resolve them if any (unlikely but good practice)
+    let currentGrid = gridWithTiles;
+    const { newGrid: gridAfterInitialMatchCheck, hasMatches: initialHasMatches } = findAndMarkMatches(currentGrid);
+    if (initialHasMatches) {
+      const gridWithoutMatched = removeMatchedTiles(gridAfterInitialMatchCheck);
+      currentGrid = applyGravityAndSpawn(gridWithoutMatched);
+    }
+
     setGameState({
-      grid: gridWithTiles,
+      grid: currentGrid,
       score: 0,
-      isGameOver: false,
+      isGameOver: checkGameOver(currentGrid),
       isGameStarted: true,
       isLoading: false,
     });
     localStorage.removeItem(LOCAL_STORAGE_KEY);
-    toast({ title: "New Game Started!", description: "Good luck!" });
+    toast({ title: "New Game Started!", description: "Match 3+ colors by sliding rows!" });
+    setIsProcessingMove(false);
   }, [toast]);
   
-  // Load game from localStorage
   useEffect(() => {
     const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (savedStateRaw) {
       try {
         const savedState = JSON.parse(savedStateRaw) as GameState;
         if (savedState.isGameStarted && !savedState.isGameOver) {
-           // Keep isLoading true until user makes a choice on the prompt
            setGameState({...savedState, isLoading: true}); 
            setShowRestorePrompt(true); 
         } else {
@@ -69,82 +88,76 @@ export default function TriPuzzlePage() {
        const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
        if (savedStateRaw) {
          const savedState = JSON.parse(savedStateRaw) as GameState;
-         setGameState({...savedState, isLoading: false}); // Now set isLoading to false
+         setGameState({...savedState, isLoading: false});
          toast({ title: "Game Restored", description: "Welcome back!" });
        }
     } else {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
-      createNewGame(); // This already sets isLoading to false
+      createNewGame();
     }
   };
 
-  // Save game to localStorage
   useEffect(() => {
-    if (gameState.isGameStarted && !gameState.isLoading) { // Only save if not loading
+    if (gameState.isGameStarted && !gameState.isLoading && !isProcessingMove) {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
     }
-  }, [gameState]);
+  }, [gameState, isProcessingMove]);
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, tile: TileType) => {
-    setDraggedTile(tile);
-  };
+  const processMatchesAndGravity = useCallback(async (currentGrid: GridData, initialScore: number): Promise<GameState> => {
+    let score = initialScore;
+    let grid = currentGrid;
+    let madeChangesInLoop;
 
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>, targetTile: TileType) => {
-    e.preventDefault();
-    if (!draggedTile || draggedTile.id === targetTile.id || targetTile.value === 0) {
-      setDraggedTile(null);
-      return;
-    }
-
-    if (draggedTile.value !== targetTile.value) {
-      toast({ title: "Invalid Move", description: "Tiles must have the same value to merge.", variant: "destructive" });
-      setDraggedTile(null);
-      return;
-    }
-    
-    let tempGrid = gameState.grid.map(row => row.map(t => {
-      if (t && t.id === draggedTile.id) return {...t, isVanishing: true};
-      return t;
-    }));
-    setGameState(prev => ({...prev, grid: tempGrid}));
-
-    await new Promise(resolve => setTimeout(resolve, 50));
-
-    const { newGrid: gridAfterMerge, scoreBonus, merged } = performMerge(gameState.grid, draggedTile, targetTile);
-
-    if (merged) {
-      const gridWithMergingMarker = gridAfterMerge.map(row => row.map(t => {
-        if (t && t.id === targetTile.id) return {...t, isMerging: true};
-        return t;
-      }));
-      setGameState(prev => ({ ...prev, grid: gridWithMergingMarker, score: prev.score + scoreBonus }));
+    do {
+      madeChangesInLoop = false;
+      const { newGrid: gridWithMatchesMarked, hasMatches, matchCount } = findAndMarkMatches(grid);
       
-      setTimeout(() => {
-        const gridAfterGravity = applyGravityAndSpawn(gridAfterMerge); 
+      if (hasMatches) {
+        madeChangesInLoop = true;
+        score += matchCount * GAME_SETTINGS.SCORE_PER_MATCHED_TILE;
         
-        const gameOver = checkGameOver(gridAfterGravity);
-        setGameState(prev => ({
-          ...prev,
-          grid: gridAfterGravity,
-          isGameOver: gameOver,
-        }));
+        // Show matches being marked (optional animation step)
+        setGameState(prev => ({ ...prev, grid: gridWithMatchesMarked, score }));
+        await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.MATCH_ANIMATION_DURATION));
 
-        if (gameOver) {
-          toast({ title: "Game Over!", description: `Final Score: ${gameState.score + scoreBonus}`});
-        }
-      }, 300); 
+        const gridAfterRemoval = removeMatchedTiles(gridWithMatchesMarked);
+        setGameState(prev => ({ ...prev, grid: gridAfterRemoval, score }));
+        // Potentially another small delay for removal animation if desired
 
-    } else {
-       tempGrid = gameState.grid.map(row => row.map(t => {
-        if (t && t.id === draggedTile.id) return {...t, isVanishing: false};
-        return t;
-      }));
-      setGameState(prev => ({...prev, grid: tempGrid}));
+        grid = applyGravityAndSpawn(gridAfterRemoval);
+        setGameState(prev => ({ ...prev, grid, score })); // Show spawned tiles
+        await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SPAWN_ANIMATION_DURATION));
+
+      } else {
+        // No matches, break loop
+        break;
+      }
+    } while (madeChangesInLoop);
+
+    const gameOver = checkGameOver(grid);
+    if (gameOver && !gameState.isGameOver) { // Prevent multiple game over toasts
+       toast({ title: "Game Over!", description: `Final Score: ${score}`});
     }
-    setDraggedTile(null);
-  };
-  
-  if (gameState.isLoading && !showRestorePrompt) { // Initial loading screen
+    return { ...gameState, grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
+
+  }, [gameState.isGameOver, toast]); // Added gameState.isGameOver to dependencies
+
+  const handleRowSlide = useCallback(async (rowIndex: number, direction: 'left' | 'right') => {
+    if (isProcessingMove || gameState.isGameOver) return;
+    setIsProcessingMove(true);
+
+    const gridAfterSlide = slideRow(gameState.grid, rowIndex, direction);
+    setGameState(prev => ({ ...prev, grid: gridAfterSlide }));
+    await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION));
+
+    const newState = await processMatchesAndGravity(gridAfterSlide, gameState.score);
+    setGameState(newState);
+    
+    setIsProcessingMove(false);
+  }, [gameState.grid, gameState.score, gameState.isGameOver, processMatchesAndGravity, isProcessingMove]);
+
+
+  if (gameState.isLoading && !showRestorePrompt) {
     return <div className="flex items-center justify-center min-h-screen text-xl">Loading TriPuzzle...</div>;
   }
 
@@ -155,28 +168,25 @@ export default function TriPuzzlePage() {
           0% { transform: scale(0.5) translateY(-20px); opacity: 0; }
           100% { transform: scale(1) translateY(0); opacity: 1; }
         }
-        .animate-tile-spawn { animation: tile-spawn 0.3s ease-out forwards; }
+        .animate-tile-spawn { animation: tile-spawn ${GAME_SETTINGS.SPAWN_ANIMATION_DURATION}ms ease-out forwards; }
 
-        @keyframes tile-merge {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.25) rotate(5deg); box-shadow: 0 0 15px hsl(var(--tile-potential-merge-glow));}
-          100% { transform: scale(1) rotate(0deg); }
+        @keyframes tile-vanish { /* Used for matched tiles */
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.2); opacity: 0.5; box-shadow: 0 0 15px hsl(var(--accent)); }
+          100% { transform: scale(0.3); opacity: 0; }
         }
-        .animate-tile-merge { animation: tile-merge 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
+        .animate-tile-vanish { animation: tile-vanish ${GAME_SETTINGS.MATCH_ANIMATION_DURATION}ms ease-in forwards; }
         
-        @keyframes tile-vanish {
-          0% { transform: scale(1) rotate(0deg); opacity: 1; }
-          100% { transform: scale(0.3) rotate(15deg); opacity: 0; }
-        }
-        .animate-tile-vanish { animation: tile-vanish 0.25s ease-in forwards; }
+        /* Optional: Row slide animation hint (actual slide is via state update) */
+        /* .row-sliding { transition: transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-in-out; } */
       `}</style>
       <main className="flex flex-col items-center justify-start min-h-screen p-4 md:p-8 pt-6 md:pt-12 bg-background">
-        {showRestorePrompt && ( // This will show on top of "Loading..." if isLoading is still true
+        {showRestorePrompt && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-card p-6 rounded-lg shadow-xl text-center">
               <h3 className="text-lg font-semibold mb-2">Restore Game?</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                We found a saved game. Would you like to continue?
+                Found a saved game. Continue where you left off?
               </p>
               <div className="flex justify-center space-x-3">
                 <Button onClick={() => handleRestoreGame(true)} variant="default">Yes, Restore</Button>
@@ -186,7 +196,7 @@ export default function TriPuzzlePage() {
           </div>
         )}
 
-        {!gameState.isLoading && !showRestorePrompt && ( // Only render game UI if not loading and no prompt
+        {!gameState.isLoading && !showRestorePrompt && (
           <>
             <GameControls
               score={gameState.score}
@@ -196,17 +206,21 @@ export default function TriPuzzlePage() {
             />
             <GridDisplay
               gridData={gameState.grid}
-              onTileDragStart={handleDragStart}
-              onTileDrop={handleDrop}
-              draggedTile={draggedTile}
+              onRowSlide={handleRowSlide}
+              // Removed props related to individual tile D&D
             />
+            {isProcessingMove && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/30 z-40">
+                <p className="text-lg font-semibold p-4 bg-card rounded-md shadow-lg">Processing...</p>
+              </div>
+            )}
             <GameOverDialog
               isOpen={gameState.isGameOver}
               score={gameState.score}
               onNewGame={createNewGame}
             />
             <footer className="mt-8 text-center text-sm text-muted-foreground">
-              <p>Drag tiles with the same number to combine them. Special rules for 1s and {GAME_SETTINGS.MAX_TILE_VALUE}s!</p>
+              <p>Slide rows to match 3 or more tiles of the same color.</p>
               <p>Inspired by Trism. Built with Next.js & ShadCN UI.</p>
             </footer>
           </>
@@ -215,5 +229,3 @@ export default function TriPuzzlePage() {
     </>
   );
 }
-
-    
