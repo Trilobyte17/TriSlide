@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}> {/* Used new variable and added generic font-sans */}
+      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning> {/* Used new variable and added generic font-sans, added suppressHydrationWarning */}
         {children}
         <Toaster /> {/* Added Toaster component here */}
       </body>
@@ -29,4 +29,3 @@ export default function RootLayout({
   );
 }
 
-    
