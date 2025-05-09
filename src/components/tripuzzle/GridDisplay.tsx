@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -29,10 +28,11 @@ export function GridDisplay({
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
   const numGridCols = GAME_SETTINGS.GRID_WIDTH_TILES;
 
+  // Adjusted container height calculation
   const containerWidth = numGridCols * (TILE_BASE_WIDTH / 2) + (TILE_BASE_WIDTH / 2);
-  const containerHeight = numGridRows * (TILE_HEIGHT * 0.75) + (TILE_HEIGHT * 0.25);
+  const containerHeight = numGridRows * TILE_HEIGHT; // Each logical row takes full TILE_HEIGHT
   
-  const slideButtonSize = TILE_HEIGHT * 0.6;
+  const slideButtonSize = TILE_HEIGHT * 0.8; // Keep button icon size proportional
 
   return (
     <div className="flex items-center justify-center space-x-1 my-4">
@@ -43,18 +43,19 @@ export function GridDisplay({
             variant="ghost"
             size="icon"
             className="p-0"
-            style={{ height: `${TILE_HEIGHT * 0.75}px`, width: `${slideButtonSize}px` }}
+            // Adjusted button height to match full TILE_HEIGHT per row
+            style={{ height: `${TILE_HEIGHT}px`, width: `${slideButtonSize}px` }}
             onClick={() => onRowSlide(r, 'left')}
             disabled={isProcessingMove}
             aria-label={`Slide row ${r + 1} left`}
           >
-            <ArrowLeftCircle size={slideButtonSize * 0.8} />
+            <ArrowLeftCircle size={slideButtonSize} />
           </Button>
         ))}
       </div>
 
       <div 
-        className="relative p-1 bg-black rounded-lg shadow-inner"
+        className="relative p-1 bg-black/20 dark:bg-black/40 rounded-lg shadow-inner" // Slightly adjusted background for better visibility
         role="grid" 
         aria-label="TriPuzzle game grid"
         style={{ 
@@ -62,14 +63,15 @@ export function GridDisplay({
           height: `${containerHeight}px`,
         }}
       >
-        {gridData.map((row, r) => {
-          return row.map((tileData, c) => {
+        {gridData.map((row, r_idx) => { // Renamed r to r_idx to avoid conflict with outer scope if any
+          return row.map((tileData, c_idx) => { // Renamed c to c_idx
             if (!tileData) {
               return null;
             }
-            const tileY = r * (TILE_HEIGHT * 0.75);
-            const tileX = c * (TILE_BASE_WIDTH / 2);
-            const isSelected = selectedTileCoords?.r === r && selectedTileCoords?.c === c;
+            // Adjusted tileY calculation for correct tessellation
+            const tileY = r_idx * TILE_HEIGHT; 
+            const tileX = c_idx * (TILE_BASE_WIDTH / 2);
+            const isSelected = selectedTileCoords?.r === r_idx && selectedTileCoords?.c === c_idx;
             
             return (
               <div
@@ -83,11 +85,11 @@ export function GridDisplay({
                   transition: 'left 0.2s ease, top 0.2s ease', 
                 }}
                 role="gridcell"
-                aria-label={`Tile at data row ${r}, data col ${c} with color ${tileData.color}`}
+                aria-label={`Tile at data row ${r_idx}, data col ${c_idx} with color ${tileData.color}`}
               >
                 <Tile
                   tile={tileData}
-                  onClick={() => onTileClick(r,c)}
+                  onClick={() => onTileClick(r_idx,c_idx)}
                   isSelected={isSelected}
                 />
               </div>
@@ -97,21 +99,23 @@ export function GridDisplay({
       </div>
 
        <div className="flex flex-col justify-around" style={{ height: `${containerHeight}px`, minWidth: `${slideButtonSize + 4}px` }}>
-        {gridData.map((_, r) => (
+        {gridData.map((_, r) => ( // r can be reused here as it's a new map scope
           <Button
             key={`right-slide-${r}`}
             variant="ghost"
             size="icon"
             className="p-0"
-            style={{ height: `${TILE_HEIGHT * 0.75}px`, width: `${slideButtonSize}px`}}
+            // Adjusted button height to match full TILE_HEIGHT per row
+            style={{ height: `${TILE_HEIGHT}px`, width: `${slideButtonSize}px`}}
             onClick={() => onRowSlide(r, 'right')}
             disabled={isProcessingMove}
             aria-label={`Slide row ${r + 1} right`}
           >
-            <ArrowRightCircle size={slideButtonSize * 0.8} />
+            <ArrowRightCircle size={slideButtonSize} />
           </Button>
         ))}
       </div>
     </div>
   );
 }
+
