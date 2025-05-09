@@ -30,9 +30,9 @@ export function GridDisplay({
 
   // Adjusted container height calculation
   const containerWidth = numGridCols * (TILE_BASE_WIDTH / 2) + (TILE_BASE_WIDTH / 2);
-  const containerHeight = numGridRows * TILE_HEIGHT; // Each logical row takes full TILE_HEIGHT
+  const containerHeight = numGridRows * TILE_HEIGHT; 
   
-  const slideButtonSize = TILE_HEIGHT * 0.8; // Keep button icon size proportional
+  const slideButtonSize = TILE_HEIGHT * 0.8; 
 
   return (
     <div className="flex items-center justify-center space-x-1 my-4">
@@ -43,7 +43,6 @@ export function GridDisplay({
             variant="ghost"
             size="icon"
             className="p-0"
-            // Adjusted button height to match full TILE_HEIGHT per row
             style={{ height: `${TILE_HEIGHT}px`, width: `${slideButtonSize}px` }}
             onClick={() => onRowSlide(r, 'left')}
             disabled={isProcessingMove}
@@ -55,7 +54,7 @@ export function GridDisplay({
       </div>
 
       <div 
-        className="relative p-1 bg-black/20 dark:bg-black/40 rounded-lg shadow-inner" // Slightly adjusted background for better visibility
+        className="relative p-1 bg-black/20 dark:bg-black/40 rounded-lg shadow-inner" 
         role="grid" 
         aria-label="TriPuzzle game grid"
         style={{ 
@@ -63,12 +62,11 @@ export function GridDisplay({
           height: `${containerHeight}px`,
         }}
       >
-        {gridData.map((row, r_idx) => { // Renamed r to r_idx to avoid conflict with outer scope if any
-          return row.map((tileData, c_idx) => { // Renamed c to c_idx
+        {gridData.map((row, r_idx) => { 
+          return row.map((tileData, c_idx) => { 
             if (!tileData) {
               return null;
             }
-            // Adjusted tileY calculation for correct tessellation
             const tileY = r_idx * TILE_HEIGHT; 
             const tileX = c_idx * (TILE_BASE_WIDTH / 2);
             const isSelected = selectedTileCoords?.r === r_idx && selectedTileCoords?.c === c_idx;
@@ -83,6 +81,7 @@ export function GridDisplay({
                   width: `${TILE_BASE_WIDTH}px`, 
                   height: `${TILE_HEIGHT}px`,
                   transition: 'left 0.2s ease, top 0.2s ease', 
+                  pointerEvents: 'none', // Ensure clicks pass through this div to the SVG
                 }}
                 role="gridcell"
                 aria-label={`Tile at data row ${r_idx}, data col ${c_idx} with color ${tileData.color}`}
@@ -99,13 +98,12 @@ export function GridDisplay({
       </div>
 
        <div className="flex flex-col justify-around" style={{ height: `${containerHeight}px`, minWidth: `${slideButtonSize + 4}px` }}>
-        {gridData.map((_, r) => ( // r can be reused here as it's a new map scope
+        {gridData.map((_, r) => ( 
           <Button
             key={`right-slide-${r}`}
             variant="ghost"
             size="icon"
             className="p-0"
-            // Adjusted button height to match full TILE_HEIGHT per row
             style={{ height: `${TILE_HEIGHT}px`, width: `${slideButtonSize}px`}}
             onClick={() => onRowSlide(r, 'right')}
             disabled={isProcessingMove}
@@ -118,4 +116,3 @@ export function GridDisplay({
     </div>
   );
 }
-

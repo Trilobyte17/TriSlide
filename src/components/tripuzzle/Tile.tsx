@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Tile as TileType } from '@/lib/tripuzzle/types';
@@ -11,7 +10,6 @@ interface TileProps {
   isSelected?: boolean;
 }
 
-// Use precise dimensions from GAME_SETTINGS
 const SVG_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
 const SVG_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
 
@@ -39,6 +37,7 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
       )}
       style={
         {
+          pointerEvents: 'auto', // Ensure SVG itself handles pointer events
           // Drop shadow can be added here if desired
         }
       }
@@ -63,7 +62,7 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         style={{
           fill: tileStyle.backgroundColor,
           stroke: 'hsl(var(--tile-border-color, 0 0% 0%))', 
-          strokeWidth: GAME_SETTINGS.TILE_BORDER_WIDTH 
+          strokeWidth: GAME_SETTINGS.TILE_BORDER_WIDTH,
         }}
       />
       {/* Glossy overlay */}
@@ -71,15 +70,15 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         points={points}
         style={{ fill: `url(#${uniqueGlossyId})` }}
       />
-      {/* Explicit triangular selection highlight - made more prominent */}
+      {/* Explicit triangular selection highlight */}
       {isSelected && (
         <polygon
           points={points}
           style={{
-            fill: 'hsla(var(--accent), 0.25)', // Semi-transparent accent fill for better visibility
+            fill: 'transparent', // Changed fill to transparent
             stroke: 'hsl(var(--accent))', // Accent color for selection stroke
-            strokeWidth: 3, // Made stroke thicker
-            strokeLinejoin: 'round', // Ensures corners are not overly sharp with thick stroke
+            strokeWidth: 3, 
+            strokeLinejoin: 'round',
           }}
         />
       )}
