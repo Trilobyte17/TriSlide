@@ -34,12 +34,12 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         "select-none transition-all duration-300 ease-out cursor-pointer",
         tile.isNew && "animate-tile-spawn",
         tile.isMatched && "animate-tile-vanish",
-        isSelected && "ring-[3px] ring-offset-1 ring-accent scale-105", // Ring for selection is outside SVG
+        isSelected && "ring-[0px] ring-offset-0 scale-105", // Ring effect removed as border now indicates selection
         "hover:opacity-80 hover:scale-105"
       )}
       style={
         {
-          // Drop shadow removed to prevent visual overlap.
+          // Drop shadow can be added here if desired, but removed for clarity with borders
           // filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.3)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.1))'
         }
       }
@@ -63,19 +63,15 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         points={points} 
         style={{ 
           fill: tileStyle.backgroundColor,
-          // Stroke only for selected, otherwise 0 to prevent visual overlap at shared edges.
-          stroke: isSelected ? 'hsl(var(--accent))' : 'none', 
-          strokeWidth: isSelected ? 0.5 : 0 // Using a smaller stroke for selected if needed, or 0.
+          stroke: isSelected ? 'hsl(var(--accent))' : 'hsl(var(--border))', 
+          strokeWidth: 0.5 // Using 0.5 for a thin border, adjust as needed for "1 pixel" feel
         }} 
       />
       <polygon 
         points={points} 
         style={{ fill: `url(#${uniqueGlossyId})` }} 
       />
-       {/* Optional: Inner marker for selection, if ring is not preferred or for additional emphasis */}
-       {/* {isSelected && ( 
-        <circle cx={SVG_WIDTH / 2} cy={SVG_HEIGHT / 2} r="3" fill="rgba(255,255,255,0.7)" />
-      )} */}
     </svg>
   );
 }
+
