@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Tile as TileType } from '@/lib/tripuzzle/types';
@@ -32,10 +31,10 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
       onClick={onClick}
       className={cn(
         "select-none transition-all duration-300 ease-out cursor-pointer",
+        "focus:outline-none", // Added to remove default browser focus outline
         tile.isNew && "animate-tile-spawn",
         tile.isMatched && "animate-tile-vanish",
-        // Removed scale-105 from isSelected, relying on stroke for selection visual
-        "hover:opacity-80 hover:scale-105" 
+        "hover:opacity-80 hover:scale-105"
       )}
       style={
         {
@@ -43,8 +42,8 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         }
       }
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}${isSelected ? ', selected' : ''}`}
-      role="button" 
-      tabIndex={onClick ? 0 : -1} 
+      role="button"
+      tabIndex={onClick ? 0 : -1}
       onKeyDown={(e) => {
         if ((e.key === 'Enter' || e.key === ' ') && onClick) {
           onClick();
@@ -58,19 +57,18 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
           <stop offset="100%" style={{ stopColor: 'rgba(255,255,255,0.0)' }} />
         </linearGradient>
       </defs>
-      <polygon 
-        points={points} 
-        style={{ 
+      <polygon
+        points={points}
+        style={{
           fill: tileStyle.backgroundColor,
-          stroke: isSelected ? 'hsl(var(--accent))' : '#000000', 
+          stroke: isSelected ? 'hsl(var(--accent))' : '#000000',
           strokeWidth: isSelected ? 2 : 0.5 // Thicker stroke for selected tiles
-        }} 
+        }}
       />
-      <polygon 
-        points={points} 
-        style={{ fill: `url(#${uniqueGlossyId})` }} 
+      <polygon
+        points={points}
+        style={{ fill: `url(#${uniqueGlossyId})` }}
       />
     </svg>
   );
 }
-
