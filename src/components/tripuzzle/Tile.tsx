@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Tile as TileType } from '@/lib/tripuzzle/types';
@@ -61,8 +62,8 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         points={points}
         style={{
           fill: tileStyle.backgroundColor,
-          stroke: '#000000', // Always use thin black border for the base tile
-          strokeWidth: 0.5 
+          stroke: 'hsl(var(--tile-border-color, 0 0% 0%))', 
+          strokeWidth: GAME_SETTINGS.TILE_BORDER_WIDTH 
         }}
       />
       {/* Glossy overlay */}
@@ -70,14 +71,15 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         points={points}
         style={{ fill: `url(#${uniqueGlossyId})` }}
       />
-      {/* Explicit triangular selection highlight */}
+      {/* Explicit triangular selection highlight - made more prominent */}
       {isSelected && (
         <polygon
           points={points}
           style={{
-            fill: 'none', // Selection highlight has no fill
-            stroke: 'hsl(var(--accent))', // Accent color for selection
-            strokeWidth: 2 // Stroke width for the selection highlight
+            fill: 'hsla(var(--accent), 0.25)', // Semi-transparent accent fill for better visibility
+            stroke: 'hsl(var(--accent))', // Accent color for selection stroke
+            strokeWidth: 3, // Made stroke thicker
+            strokeLinejoin: 'round', // Ensures corners are not overly sharp with thick stroke
           }}
         />
       )}
