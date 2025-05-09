@@ -11,6 +11,7 @@ interface TileProps {
   isSelected?: boolean;
 }
 
+// Use precise dimensions from GAME_SETTINGS
 const SVG_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
 const SVG_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
 
@@ -33,15 +34,17 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         "select-none transition-all duration-300 ease-out cursor-pointer",
         tile.isNew && "animate-tile-spawn",
         tile.isMatched && "animate-tile-vanish",
-        isSelected && "ring-[3px] ring-offset-1 ring-accent scale-105",
+        isSelected && "ring-[3px] ring-offset-1 ring-accent scale-105", // Ring for selection is outside SVG
         "hover:opacity-80 hover:scale-105"
       )}
       style={{
+        // Drop shadow can contribute to perceived overlap, but often desired for depth.
+        // If strict "no overlap" is needed, this might also need adjustment or removal.
         filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.3)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.1))'
       }}
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}${isSelected ? ', selected' : ''}`}
-      role="button" // Since it's clickable
-      tabIndex={onClick ? 0 : -1} // Make it focusable if clickable
+      role="button" 
+      tabIndex={onClick ? 0 : -1} 
       onKeyDown={(e) => {
         if ((e.key === 'Enter' || e.key === ' ') && onClick) {
           onClick();
@@ -59,17 +62,20 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         points={points} 
         style={{ 
           fill: tileStyle.backgroundColor,
-          stroke: isSelected ? 'hsl(var(--accent))' : 'rgba(0,0,0,0.2)', 
-          strokeWidth: isSelected ? 1 : 0.5
+          // Stroke only for selected, otherwise 0 to prevent visual overlap at shared edges.
+          stroke: isSelected ? 'hsl(var(--accent))' : 'none', 
+          strokeWidth: isSelected ? 1 : 0 
         }} 
       />
       <polygon 
         points={points} 
         style={{ fill: `url(#${uniqueGlossyId})` }} 
       />
-       {isSelected && ( /* Optional: Add an inner marker for selected state */
+       {/* Optional: Inner marker for selection, if ring is not preferred or for additional emphasis */}
+       {/* {isSelected && ( 
         <circle cx={SVG_WIDTH / 2} cy={SVG_HEIGHT / 2} r="3" fill="rgba(255,255,255,0.7)" />
-      )}
+      )} */}
     </svg>
   );
 }
+

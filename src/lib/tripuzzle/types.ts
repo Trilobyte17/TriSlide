@@ -27,13 +27,13 @@ export interface GridDimensions {
 }
 
 const TARGET_TILE_BASE_WIDTH = 40; 
-const TARGET_TILE_HEIGHT = Math.round((Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH);
+// Precise height for an equilateral triangle based on its base width
+const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
   GRID_WIDTH_TILES: 11, 
   GRID_HEIGHT_TILES: 8,  
   MIN_MATCH_LENGTH: 3,
-  // Using 5 colors as per existing CSS variables (--tile-0 to --tile-4)
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const, 
   SCORE_PER_MATCHED_TILE: 10,
   SLIDE_ANIMATION_DURATION: 200, // ms
@@ -41,15 +41,14 @@ export const GAME_SETTINGS = {
   SPAWN_ANIMATION_DURATION: 300, // ms
   SWAP_ANIMATION_DURATION: 150, // ms for tile swap visual
   TRIAD_ROTATE_ANIMATION_DURATION: 250, // ms for triad rotation visual
-  TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH,
-  TILE_HEIGHT: TARGET_TILE_HEIGHT,
+  TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH, // Use integer for base width
+  TILE_HEIGHT: PRECISE_TILE_HEIGHT,      // Use precise float for height
 } as const;
 
 export type TileColor = typeof GAME_SETTINGS.COLORS[number];
 
 export const getTileColorStyle = (color: TileColor): { backgroundColor: string, color: string } => {
   const colorIndex = GAME_SETTINGS.COLORS.indexOf(color);
-  // Use modulo to cycle through available tile theme variables if more colors than themes
   const tileThemeVarIndex = colorIndex !== -1 ? colorIndex % GAME_SETTINGS.COLORS.length : 0; 
   
   return { 
