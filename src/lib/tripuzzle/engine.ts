@@ -1,69 +1,83 @@
 
-import type { GridData, Tile, TileColor } from './types';
+import type { GridData, Tile } from './types';
 import { GAME_SETTINGS, getRandomColor } from './types';
 
-// Utility to generate a unique ID for tiles
 const generateUniqueId = (): string => Math.random().toString(36).substr(2, 9);
 
-export const initializeGrid = (numRows: number): GridData => {
+export const initializeGrid = (rows: number, cols: number): GridData => {
   const grid: GridData = [];
-  for (let r = 0; r < numRows; r++) {
-    grid.push(new Array(r + 1).fill(null));
+  for (let r = 0; r < rows; r++) {
+    // Each row in gridData will correspond to a visual row of triangles
+    grid.push(new Array(cols).fill(null));
   }
   return grid;
 };
 
-// Removed getRandomEmptyCell as addInitialTiles will now fill all cells.
-
 export const addInitialTiles = (grid: GridData): GridData => {
   const newGrid = grid.map(row => [...row]); // Deep copy
-  for (let r = 0; r < newGrid.length; r++) {
-    for (let c = 0; c < newGrid[r].length; c++) {
-      // Fill every cell
-      if (newGrid[r][c] === null) {
-        newGrid[r][c] = {
-          id: generateUniqueId(),
-          color: getRandomColor(),
-          row: r,
-          col: c,
-          isNew: true, // Mark as new for spawn animation
-        };
-      }
+  const rows = newGrid.length;
+  const cols = newGrid[0]?.length || 0;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      // Determine orientation for a tessellated rectangular grid
+      // (r,c) is up if (r is even and c is even) OR (r is odd and c is odd)
+      // (r,c) is down if (r is even and c is odd) OR (r is odd and c is even)
+      // Simplified: (r+c) % 2 === 0 -> up, (r+c) % 2 === 1 -> down for one convention
+      // To match image more closely (top-left often UP):
+      // Row 0: U D U D ...
+      // Row 1: D U D U ...
+      const orientation = ((r % 2 === 0 && c % 2 === 0) || (r % 2 !== 0 && c % 2 !== 0)) ? 'up' : 'down';
+      
+      newGrid[r][c] = {
+        id: generateUniqueId(),
+        color: getRandomColor(),
+        row: r,
+        col: c,
+        orientation: orientation,
+        isNew: true,
+      };
     }
   }
   return newGrid;
 };
 
-// Slides a row circularly
+// Slides a row circularly - REMAINS DEACTIVATED FOR NOW
 export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | 'right'): GridData => {
-  const newGrid = grid.map(r => r.map(t => t ? {...t, isNew: false, isMatched: false} : null)); // Deep copy and reset flags
+  const newGrid = grid.map(r => r.map(t => t ? {...t, isNew: false, isMatched: false} : null)); 
   if (rowIndex < 0 || rowIndex >= newGrid.length) return newGrid;
 
+  // This slide logic is for simple array rows, not complex tessellated ones.
+  // Needs significant rework for Trism-like sliding.
   const row = newGrid[rowIndex];
-  if (row.length <= 1) return newGrid; // Cannot slide a row with 0 or 1 tile
+  if (row.length <= 1) return newGrid;
 
   if (direction === 'left') {
     const first = row.shift();
     if (first !== undefined) row.push(first);
-  } else { // 'right'
+  } else { 
     const last = row.pop();
     if (last !== undefined) row.unshift(last);
   }
   
-  // Update col property for tiles in the slided row
   row.forEach((tile, c) => {
-    if (tile) tile.col = c;
+    if (tile) tile.col = c; // This col update might be misleading for tessellated grid display
   });
 
   return newGrid;
 };
 
-// Finds and marks matches
+// Finds and marks matches - NEEDS REWORK for tessellated grid adjacencies
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
   const newGrid = grid.map(row => row.map(tile => tile ? { ...tile, isMatched: false } : null));
   let hasMatches = false;
   let matchCount = 0;
+  
+  // Simplified match finding - placeholder, needs proper adjacency logic for tessellated grid
+  // This current version will likely not find many valid Trism-style matches.
   const numRows = newGrid.length;
+  if (numRows === 0) return { newGrid, hasMatches, matchCount };
+  const numCols = newGrid[0].length;
 
   const markTile = (r: number, c: number) => {
     if (newGrid[r]?.[c] && !newGrid[r][c]!.isMatched) {
@@ -73,88 +87,32 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
     }
   };
 
-  // Check horizontal matches
+  // Horizontal check (crude, only checks 3 in a data row)
   for (let r = 0; r < numRows; r++) {
-    for (let c = 0; c <= newGrid[r].length - GAME_SETTINGS.MIN_MATCH_LENGTH; c++) {
+    for (let c = 0; c <= numCols - GAME_SETTINGS.MIN_MATCH_LENGTH; c++) {
       const firstTile = newGrid[r][c];
       if (!firstTile) continue;
       let match = true;
       for (let k = 1; k < GAME_SETTINGS.MIN_MATCH_LENGTH; k++) {
-        if (!newGrid[r][c + k] || newGrid[r][c + k]!.color !== firstTile.color) {
+        if (!newGrid[r][c+k] || newGrid[r][c+k]!.color !== firstTile.color || newGrid[r][c+k]!.orientation === firstTile.orientation) { // Added orientation check to prevent simple line matches
           match = false;
           break;
         }
       }
       if (match) {
-        for (let k = 0; k < GAME_SETTINGS.MIN_MATCH_LENGTH; k++) markTile(r, c + k);
-        // Extend match if longer
-        let k = GAME_SETTINGS.MIN_MATCH_LENGTH;
-        while (c + k < newGrid[r].length && newGrid[r][c+k] && newGrid[r][c+k]!.color === firstTile.color) {
-          markTile(r, c+k);
-          k++;
-        }
+        for (let k = 0; k < GAME_SETTINGS.MIN_MATCH_LENGTH; k++) markTile(r, c+k);
       }
     }
   }
+  // TODO: Implement proper diagonal/adjacent match finding for tessellated triangles
 
-  // Check "vertical/diagonal" matches (simplified for this grid structure)
-  // A tile at (r, c) has children at (r+1, c) and (r+1, c+1)
-  // Check for matches along these lines
-  // Pattern 1: (r,c), (r+1,c), (r+2,c) - "Left-leaning" vertical
-  for (let r = 0; r <= numRows - GAME_SETTINGS.MIN_MATCH_LENGTH; r++) {
-    for (let c = 0; c < newGrid[r].length; c++) {
-      const firstTile = newGrid[r][c];
-      if (!firstTile) continue;
-      let match = true;
-      for (let k = 1; k < GAME_SETTINGS.MIN_MATCH_LENGTH; k++) {
-        if (r + k >= numRows || c >= newGrid[r+k].length || !newGrid[r+k][c] || newGrid[r+k][c]!.color !== firstTile.color) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        for (let k = 0; k < GAME_SETTINGS.MIN_MATCH_LENGTH; k++) markTile(r+k, c);
-         let k = GAME_SETTINGS.MIN_MATCH_LENGTH;
-        while (r+k < numRows && c < newGrid[r+k].length && newGrid[r+k][c] && newGrid[r+k][c]!.color === firstTile.color) {
-          markTile(r+k, c);
-          k++;
-        }
-      }
-    }
-  }
-
-  // Pattern 2: (r,c), (r+1,c+1), (r+2,c+2) - "Right-leaning" vertical
-  for (let r = 0; r <= numRows - GAME_SETTINGS.MIN_MATCH_LENGTH; r++) {
-    for (let c = 0; c < newGrid[r].length; c++) {
-      const firstTile = newGrid[r][c];
-      if (!firstTile) continue;
-      let match = true;
-      for (let k = 1; k < GAME_SETTINGS.MIN_MATCH_LENGTH; k++) {
-         if (r + k >= numRows || c + k >= newGrid[r+k].length || !newGrid[r+k][c+k] || newGrid[r+k][c+k]!.color !== firstTile.color) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        for (let k = 0; k < GAME_SETTINGS.MIN_MATCH_LENGTH; k++) markTile(r+k, c+k);
-        let k = GAME_SETTINGS.MIN_MATCH_LENGTH;
-        while (r+k < numRows && c+k < newGrid[r+k].length && newGrid[r+k][c+k] && newGrid[r+k][c+k]!.color === firstTile.color) {
-          markTile(r+k, c+k);
-          k++;
-        }
-      }
-    }
-  }
-  
   return { newGrid, hasMatches, matchCount };
 };
 
-// Removes marked tiles
 export const removeMatchedTiles = (grid: GridData): GridData => {
   return grid.map(row => row.map(tile => (tile && tile.isMatched ? null : tile)));
 };
 
-// Utility to get a random empty cell, needed for spawning new tiles
 const getRandomEmptyCell = (grid: GridData): { r: number; c: number } | null => {
   const emptyCells: { r: number; c: number }[] = [];
   grid.forEach((row, r) => {
@@ -168,55 +126,50 @@ const getRandomEmptyCell = (grid: GridData): { r: number; c: number } | null => 
   return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 };
 
-
-// Applies gravity and spawns new tiles
 export const applyGravityAndSpawn = (grid: GridData): GridData => {
-  let newGrid = grid.map(row => row.map(t => t ? {...t, isNew: false, isMatched: false} : null)); // Deep copy
-  const numRows = newGrid.length;
+  let newGrid = grid.map(row => row.map(t => t ? {...t, isNew: false, isMatched: false} : null));
+  const rows = newGrid.length;
+  if (rows === 0) return newGrid;
+  const cols = newGrid[0].length;
 
-  // Gravity: very simplified - tiles fall "down" if space directly below or diagonally below-left is available.
-  // This needs multiple passes to settle.
-  for (let pass = 0; pass < numRows; pass++) { // Iterate enough times for tiles to fall
-    for (let r = numRows - 2; r >= 0; r--) { // Iterate from bottom-up
-      for (let c = 0; c < newGrid[r].length; c++) {
-        const tile = newGrid[r][c];
-        if (tile) {
-          // Try to fall to (r+1, c) - "left child"
-          if (newGrid[r+1][c] === null) {
-            newGrid[r+1][c] = { ...tile, row: r + 1, col: c };
-            newGrid[r][c] = null;
-          } 
-          // Try to fall to (r+1, c+1) - "right child"
-          // Only if left child wasn't taken or original spot not emptied
-          else if (newGrid[r][c] !== null && newGrid[r+1][c+1] === null) { 
-            newGrid[r+1][c+1] = { ...tile, row: r + 1, col: c + 1 };
-            newGrid[r][c] = null;
-          }
-        }
+  // Simplified gravity: fill from bottom up, direct fall. Needs rework for tessellation.
+  for (let c = 0; c < cols; c++) {
+    let emptySlotInCol = -1;
+    for (let r = rows - 1; r >= 0; r--) {
+      if (newGrid[r][c] === null && emptySlotInCol === -1) {
+        emptySlotInCol = r;
+      } else if (newGrid[r][c] !== null && emptySlotInCol !== -1) {
+        newGrid[emptySlotInCol][c] = { ...newGrid[r][c]!, row: emptySlotInCol, col: c };
+        newGrid[r][c] = null;
+        emptySlotInCol--; 
       }
     }
   }
   
-  // Spawn new tiles in empty cells.
-  let emptyCell = getRandomEmptyCell(newGrid);
-  while(emptyCell) {
-      newGrid[emptyCell.r][emptyCell.c] = {
-        id: generateUniqueId(),
-        color: getRandomColor(),
-        row: emptyCell.r,
-        col: emptyCell.c,
-        isNew: true,
-      };
-      emptyCell = getRandomEmptyCell(newGrid);
+  // Spawn new tiles in empty cells at the top
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (newGrid[r][c] === null) {
+        const orientation = ((r % 2 === 0 && c % 2 === 0) || (r % 2 !== 0 && c % 2 !== 0)) ? 'up' : 'down';
+        newGrid[r][c] = {
+          id: generateUniqueId(),
+          color: getRandomColor(),
+          row: r,
+          col: c,
+          orientation: orientation,
+          isNew: true,
+        };
+      }
+    }
   }
-
-
   return newGrid;
 };
 
-
 export const checkGameOver = (grid: GridData): boolean => {
-  // Check if grid is full
+  // Placeholder: game over if no matches and grid is full (or no possible slides make matches)
+  const { hasMatches } = findAndMarkMatches(grid);
+  if (hasMatches) return false;
+
   let isFull = true;
   for (let r = 0; r < grid.length; r++) {
     for (let c = 0; c < grid[r].length; c++) {
@@ -227,25 +180,9 @@ export const checkGameOver = (grid: GridData): boolean => {
     }
     if (!isFull) break;
   }
+  if (!isFull) return false; // Can still spawn
 
-  // If not full, game is not over (unless specific game rules say otherwise, e.g., cannot spawn new tiles)
-  // For now, if not full, consider game not over as new tiles can potentially spawn.
-  if (!isFull) return false;
-
-  // If full, check if any slide can create a match
-  // This is a simplified check: if current board has no matches, and it's full.
-  // A more complex check would iterate all possible slides.
-  const { hasMatches } = findAndMarkMatches(grid);
-  if (isFull && !hasMatches) {
-    // Try all possible slides to see if any can make a match
-    for (let r = 0; r < grid.length; r++) {
-      const slidedLeft = slideRow(grid, r, 'left');
-      if (findAndMarkMatches(slidedLeft).hasMatches) return false;
-      const slidedRight = slideRow(grid, r, 'right');
-      if (findAndMarkMatches(slidedRight).hasMatches) return false;
-    }
-    return true; // Full and no slide creates a match
-  }
-
-  return false; // Has matches or not full implies game is not over.
+  // TODO: Check if any possible slide can create a match
+  // For now, if full and no matches, assume game over if sliding is not implemented
+  return true; 
 };

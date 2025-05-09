@@ -19,12 +19,12 @@ import { GameOverDialog } from '@/components/tripuzzle/GameOverDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 
-const LOCAL_STORAGE_KEY = 'triPuzzleGameState_colorMatch_v2_tessellated'; // New key for new game type
+const LOCAL_STORAGE_KEY = 'triPuzzleGameState_colorMatch_v3_tessellated_rect'; // New key for new game type
 
 export default function TriPuzzlePage() {
   const { toast } = useToast();
   const [gameState, setGameState] = useState<GameState>({
-    grid: initializeGrid(GAME_SETTINGS.NUM_ROWS),
+    grid: initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES), // Use new dimensions
     score: 0,
     isGameOver: false,
     isGameStarted: false,
@@ -36,26 +36,27 @@ export default function TriPuzzlePage() {
 
   const createNewGame = useCallback(() => {
     setIsProcessingMove(true);
-    const initialGrid = initializeGrid(GAME_SETTINGS.NUM_ROWS);
-    // Updated call to addInitialTiles, no longer needs count
+    // Initialize with new dimensions
+    const initialGrid = initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES);
     const gridWithTiles = addInitialTiles(initialGrid); 
     
     let currentGrid = gridWithTiles;
+    // Initial match check can be simplified or adjusted if engine's match finding is placeholder
     const { newGrid: gridAfterInitialMatchCheck, hasMatches: initialHasMatches } = findAndMarkMatches(currentGrid);
     if (initialHasMatches) {
       const gridWithoutMatched = removeMatchedTiles(gridAfterInitialMatchCheck);
-      currentGrid = applyGravityAndSpawn(gridWithoutMatched);
+      currentGrid = applyGravityAndSpawn(gridWithoutMatched); // Gravity logic also needs update for tessellation
     }
 
     setGameState({
       grid: currentGrid,
       score: 0,
-      isGameOver: checkGameOver(currentGrid),
+      isGameOver: checkGameOver(currentGrid), // Game over logic needs update
       isGameStarted: true,
       isLoading: false,
     });
     localStorage.removeItem(LOCAL_STORAGE_KEY);
-    toast({ title: "New Game Started!", description: "Match 3+ colors!" }); // Updated description
+    toast({ title: "New Game Started!", description: "Match 3+ colors on the new grid!" });
     setIsProcessingMove(false);
   }, [toast]);
   
@@ -64,10 +65,14 @@ export default function TriPuzzlePage() {
     if (savedStateRaw) {
       try {
         const savedState = JSON.parse(savedStateRaw) as GameState;
-        if (savedState.isGameStarted && !savedState.isGameOver) {
+        // Basic validation for grid structure mismatch if settings change drastically
+        if (savedState.grid && savedState.grid.length === GAME_SETTINGS.GRID_HEIGHT_TILES &&
+            savedState.grid[0]?.length === GAME_SETTINGS.GRID_WIDTH_TILES &&
+            savedState.isGameStarted && !savedState.isGameOver) {
            setGameState({...savedState, isLoading: true}); 
            setShowRestorePrompt(true); 
         } else {
+          console.warn("Saved game state has incompatible grid dimensions or is invalid. Starting new game.");
           createNewGame(); 
         }
       } catch (error) {
@@ -87,6 +92,7 @@ export default function TriPuzzlePage() {
        const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
        if (savedStateRaw) {
          const savedState = JSON.parse(savedStateRaw) as GameState;
+          // Additional validation before restoring might be needed
          setGameState({...savedState, isLoading: false});
          toast({ title: "Game Restored", description: "Welcome back!" });
        }
@@ -98,7 +104,10 @@ export default function TriPuzzlePage() {
 
   useEffect(() => {
     if (gameState.isGameStarted && !gameState.isLoading && !isProcessingMove) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+      // Basic check to ensure grid isn't empty before saving
+      if (gameState.grid && gameState.grid.length > 0 && gameState.grid[0].length > 0) {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+      }
     }
   }, [gameState, isProcessingMove]);
 
@@ -131,18 +140,19 @@ export default function TriPuzzlePage() {
     } while (madeChangesInLoop);
 
     const gameOver = checkGameOver(grid);
-    if (gameOver && !gameState.isGameOver) {
+    if (gameOver && !gameState.isGameOver) { // Check previous gameState.isGameOver
        toast({ title: "Game Over!", description: `Final Score: ${score}`});
     }
+    // Ensure gameState being returned here is the latest version from setGameState calls within the loop
+    // or rather, construct it from the final `grid`, `score`, `gameOver`
     return { ...gameState, grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
-
-  }, [gameState.isGameOver, toast]); // gameState removed from dependency array, only isGameOver is needed from it.
+  }, [gameState, toast]); // Rely on gameState to carry over properties like isGameStarted, isLoading
 
   // const handleRowSlide = useCallback(async (rowIndex: number, direction: 'left' | 'right') => {
   //   if (isProcessingMove || gameState.isGameOver) return;
   //   setIsProcessingMove(true);
 
-  //   const gridAfterSlide = slideRow(gameState.grid, rowIndex, direction);
+  //   const gridAfterSlide = slideRow(gameState.grid, rowIndex, direction); // slideRow needs update for new grid
   //   setGameState(prev => ({ ...prev, grid: gridAfterSlide }));
   //   await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION));
 
@@ -161,14 +171,14 @@ export default function TriPuzzlePage() {
     <>
       <style jsx global>{`
         @keyframes tile-spawn {
-          0% { transform: scale(0.5) translateY(-10px) rotate(15deg); opacity: 0; } /* Adjusted for triangles */
+          0% { transform: scale(0.5) translateY(-10px) rotate(15deg); opacity: 0; }
           100% { transform: scale(1) translateY(0) rotate(0deg); opacity: 1; }
         }
         .animate-tile-spawn { animation: tile-spawn ${GAME_SETTINGS.SPAWN_ANIMATION_DURATION}ms ease-out forwards; }
 
         @keyframes tile-vanish { 
           0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.1) rotate(-5deg); opacity: 0.5; filter: brightness(1.5); } /* Adjusted for triangles */
+          50% { transform: scale(1.1) rotate(-5deg); opacity: 0.5; filter: brightness(1.5); }
           100% { transform: scale(0.3) rotate(10deg); opacity: 0; }
         }
         .animate-tile-vanish { animation: tile-vanish ${GAME_SETTINGS.MATCH_ANIMATION_DURATION}ms ease-in forwards; }
@@ -189,7 +199,7 @@ export default function TriPuzzlePage() {
           </div>
         )}
 
-        {!gameState.isLoading && !showRestorePrompt && (
+        {!gameState.isLoading && !showRestorePrompt && gameState.grid.length > 0 && (
           <>
             <GameControls
               score={gameState.score}
@@ -212,7 +222,7 @@ export default function TriPuzzlePage() {
               onNewGame={createNewGame}
             />
             <footer className="mt-8 text-center text-sm text-muted-foreground">
-              <p>Match 3 or more tiles of the same color. Sliding mechanism coming soon!</p>
+              <p>Match 3 or more tiles of the same color. Sliding mechanics coming soon!</p>
               <p>Inspired by Trism. Built with Next.js & ShadCN UI.</p>
             </footer>
           </>
@@ -221,4 +231,3 @@ export default function TriPuzzlePage() {
     </>
   );
 }
-

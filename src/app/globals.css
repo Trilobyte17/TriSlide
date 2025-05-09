@@ -8,8 +8,8 @@ body {
 
 @layer base {
   :root {
-    --background: 220 40% 97%; /* Lighter, slightly bluish background */
-    --foreground: 220 25% 15%; /* Darker, slightly desaturated blue foreground */
+    --background: 220 40% 97%; 
+    --foreground: 220 25% 15%; 
     
     --card: 0 0% 100%;
     --card-foreground: 220 25% 15%;
@@ -17,53 +17,45 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 220 25% 15%;
     
-    --primary: 210 90% 55%; /* A strong, clear blue for primary actions */
+    --primary: 210 90% 55%; 
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 220 30% 90%; /* Lighter, softer blue-gray for secondary elements */
+    --secondary: 220 30% 90%; 
     --secondary-foreground: 220 25% 25%;
     
     --muted: 220 30% 94%;
     --muted-foreground: 220 20% 45%;
     
-    --accent: 30 85% 60%;  /* Vibrant orange for accents (score, special buttons) */
-    --accent-foreground: 0 0% 10%; /* Dark text for good contrast on orange */
+    --accent: 30 85% 60%;  
+    --accent-foreground: 0 0% 10%; 
     
-    --destructive: 0 75% 60%; /* A clear red for destructive actions */
+    --destructive: 0 75% 60%; 
     --destructive-foreground: 0 0% 100%;
     
     --border: 220 20% 88%;
-    --input: 220 20% 92%; /* Slightly lighter input background */
-    --ring: 210 90% 65%; /* Ring color related to primary */
+    --input: 220 20% 92%; 
+    --ring: 210 90% 65%; 
 
     --radius: 0.5rem;
 
-    /* Tile specific colors - Ensure enough distinct colors for GAME_SETTINGS.COLORS */
-    /* red, green, blue, yellow, purple, orange */
-    --tile-0: 0 70% 80%;    /* Light Red */
-    --tile-1: 120 60% 75%;  /* Light Green */
-    --tile-2: 220 70% 80%;  /* Light Blue */
-    --tile-3: 50 80% 78%;   /* Light Yellow */
-    --tile-4: 270 60% 80%;  /* Light Purple */
-    --tile-5: 30 80% 80%;   /* Light Orange */
-    /* Add more if GAME_SETTINGS.COLORS expands beyond 6 */
-    /* --tile-6: 180 60% 88%; */
-    /* --tile-7: 210 60% 88%; */
-    /* --tile-8: 240 60% 88%; */
-    /* --tile-9: 270 60% 88%; */
-    /* --tile-10: 300 60% 88%; */
-    --tile-text: 220 25% 20%; /* Default text color for tiles (not used for SVG fill directly) */
+    /* Updated Tile specific colors for more vibrancy */
+    --tile-0: 0 80% 60%;    /* Vivid Red */
+    --tile-1: 120 70% 50%;  /* Vivid Green */
+    --tile-2: 220 80% 65%;  /* Vivid Blue */
+    --tile-3: 50 90% 60%;   /* Vivid Yellow */
+    --tile-4: 280 70% 65%;  /* Vivid Purple */
+    /* --tile-5: 30 80% 80%;  /* Light Orange - not used in current 5 color set */
+    
+    --tile-text: 220 25% 20%; 
     --tile-active-border: 30 90% 60%; 
     --tile-potential-merge-glow: 30 90% 70%; 
 
-    /* Chart colors - keeping them as they are, not directly used by TriPuzzle */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
 
-    /* Sidebar colors - keeping them for consistency if sidebar is used elsewhere */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -103,30 +95,24 @@ body {
     --input: 220 20% 22%;
     --ring: 210 90% 70%;
     
-    /* Dark theme tile colors */
-    --tile-0: 0 50% 45%;    /* Dark Red */
-    --tile-1: 120 40% 40%;  /* Dark Green */
-    --tile-2: 220 50% 45%;  /* Dark Blue */
-    --tile-3: 50 60% 42%;   /* Dark Yellow */
-    --tile-4: 270 40% 45%;  /* Dark Purple */
-    --tile-5: 30 60% 45%;   /* Dark Orange */
-    /* --tile-6: 180 40% 38%; */
-    /* --tile-7: 210 40% 38%; */
-    /* --tile-8: 240 40% 38%; */
-    /* --tile-9: 270 40% 38%; */
-    /* --tile-10: 300 40% 38%; */
+    /* Dark theme tile colors - updated for vibrancy */
+    --tile-0: 0 70% 50%;    /* Dark Vivid Red */
+    --tile-1: 120 60% 40%;  /* Dark Vivid Green */
+    --tile-2: 220 70% 55%;  /* Dark Vivid Blue */
+    --tile-3: 50 80% 50%;   /* Dark Vivid Yellow */
+    --tile-4: 280 60% 55%;  /* Dark Vivid Purple */
+    /* --tile-5: 30 70% 50%; */
+    
     --tile-text: 0 0% 95%;
     --tile-active-border: 30 80% 65%;
     --tile-potential-merge-glow: 30 80% 55%;
 
-    /* Chart colors for dark theme */
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
-    /* Sidebar colors for dark theme */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
