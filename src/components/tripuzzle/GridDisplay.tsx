@@ -1,103 +1,80 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
-import type { GridData, Tile as TileType } from '@/lib/tripuzzle/types';
+import React from 'react';
+import type { GridData } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { Tile } from './Tile';
 import { cn } from '@/lib/utils';
 
 interface GridDisplayProps {
   gridData: GridData;
-  onRowSlide: (rowIndex: number, direction: 'left' | 'right') => void;
+  // onRowSlide: (rowIndex: number, direction: 'left' | 'right') => void; // Temporarily removed
 }
 
-export function GridDisplay({ gridData, onRowSlide }: GridDisplayProps) {
+export function GridDisplay({ gridData }: GridDisplayProps) {
   const numRows = gridData.length;
-  const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null);
-  const [dragStartX, setDragStartX] = useState<number | null>(null);
-  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
-
   const TILE_BASE_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); 
-  };
-
-  const handleRowDragStart = (e: React.DragEvent<HTMLDivElement>, rowIndex: number) => {
-    setDraggedRowIndex(rowIndex);
-    setDragStartX(e.clientX);
-    const crt = e.currentTarget.cloneNode(true) as HTMLElement;
-    crt.style.opacity = "0.5"; 
-    document.body.appendChild(crt);
-    e.dataTransfer.setDragImage(crt, 20, TILE_HEIGHT / 2); // Adjust drag image offset
-    setTimeout(() => crt.remove(),0);
-  };
-
-  const handleRowDragEnd = (e: React.DragEvent<HTMLDivElement>, rowIndex: number) => {
-    if (dragStartX === null || draggedRowIndex !== rowIndex) return;
-
-    const dragEndX = e.clientX;
-    const deltaX = dragEndX - dragStartX;
-    const slideThreshold = TILE_BASE_WIDTH / 3; 
-
-    if (Math.abs(deltaX) > slideThreshold) {
-      const direction = deltaX > 0 ? 'right' : 'left';
-      onRowSlide(rowIndex, direction);
-    }
-
-    setDraggedRowIndex(null);
-    setDragStartX(null);
-  };
-  
-  const handleRowDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
+  // Calculate container dimensions needed for the large triangle of tessellated tiles
+  const containerWidth = numRows * TILE_BASE_WIDTH;
+  // Height: (numRows - 1) half-steps + 1 full tile height for the last part
+  const containerHeight = (numRows > 0 ? (numRows - 1) * (TILE_HEIGHT / 2) + TILE_HEIGHT : 0);
 
   return (
     <div 
-      className="flex flex-col items-center p-2 bg-secondary/30 rounded-lg shadow-inner" 
+      className="relative p-2 bg-secondary/30 rounded-lg shadow-inner" 
       role="grid" 
       aria-label="TriPuzzle game grid"
-      style={{ width: `${numRows * TILE_BASE_WIDTH + (numRows > 1 ? (numRows-1)*4 : 0)}px`}} // Approximate width + spacing
+      style={{ 
+        width: `${containerWidth}px`,
+        height: `${containerHeight}px`,
+      }}
     >
-      {gridData.map((row, r) => (
-        <div
-          key={`row-${r}`}
-          ref={el => rowRefs.current[r] = el}
-          className="flex justify-center" // Removed space-x-1, using margin on cells
-          style={{ 
-             // Indent rows to form the triangular shape's left edge
-             marginLeft: `${(numRows - (r + 1)) * (TILE_BASE_WIDTH / 2)}px`,
-             // Negative margin to make triangles "nest" vertically if desired
-             // marginTop: r > 0 ? `-${TILE_HEIGHT / 3}px` : '0px', // Example of nesting
-             marginBottom: '2px', // Small gap between rows of triangles
-          }}
-          role="row"
-          draggable={row.length > 1} 
-          onDragStart={(e) => row.length > 1 && handleRowDragStart(e, r)}
-          onDragEnd={(e) => row.length > 1 && handleRowDragEnd(e, r)}
-          onDragOver={handleRowDragOver} 
-        >
-          {row.map((tile, c) => (
+      {gridData.map((row, r) => {
+        // Determine if triangles in this row point up or down
+        // For a tessellated grid where rows interlock, orientations often alternate
+        const isUp = (r % 2 === 0);
+        const orientation = isUp ? 'up' : 'down';
+
+        return row.map((tileData, c) => {
+          if (!tileData) {
+            // Optionally render placeholders for empty slots if needed for debugging
+            // For now, just skip empty slots
+            return null;
+          }
+
+          // Calculate position for tessellation
+          // y: Each row steps down by half a tile height to allow interlocking
+          const tileY = r * (TILE_HEIGHT / 2);
+          // x: Base indent for the large triangle shape, then position within row.
+          //    Downward rows are shifted by half a tile width to interlock.
+          const rowIndentX = (numRows - 1 - r) * (TILE_BASE_WIDTH / 2);
+          const tileXInRow = c * TILE_BASE_WIDTH;
+          const orientationShiftX = isUp ? 0 : TILE_BASE_WIDTH / 2;
+          const tileX = rowIndentX + tileXInRow + orientationShiftX;
+          
+          return (
             <div
-              key={tile ? tile.id : `empty-${r}-${c}`}
-              className={cn(
-                `w-[${TILE_BASE_WIDTH}px] h-[${TILE_HEIGHT}px] flex items-center justify-center mx-px`, // Cell container for triangle SVG
-                !tile && "bg-muted/30 opacity-40" // Empty cell styling (no rounded-full for triangles)
-              )}
+              key={tileData.id}
+              style={{
+                position: 'absolute',
+                left: `${tileX}px`,
+                top: `${tileY}px`,
+                width: `${TILE_BASE_WIDTH}px`, // For click area and layout debugging
+                height: `${TILE_HEIGHT}px`,
+              }}
               role="gridcell"
-              aria-label={tile ? `Tile at row ${r+1} column ${c+1}` : `Empty cell at row ${r+1} column ${c+1}`}
+              aria-label={`Tile at logical row ${r+1} column ${c+1}`}
             >
-              {tile && (
-                <Tile
-                  tile={tile}
-                />
-              )}
+              <Tile
+                tile={tileData}
+                orientation={orientation}
+              />
             </div>
-          ))}
-        </div>
-      ))}
+          );
+        });
+      })}
     </div>
   );
 }

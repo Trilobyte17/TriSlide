@@ -20,12 +20,13 @@ export interface GameState {
 }
 
 const TILE_SVG_BASE_WIDTH = 60; // px
-const TILE_SVG_HEIGHT = Math.round((Math.sqrt(3) / 2) * TILE_SVG_BASE_WIDTH); // height of equilateral triangle
+// Use precise height for equilateral triangle: (sqrt(3)/2) * width
+const TILE_SVG_HEIGHT = Math.round((Math.sqrt(3) / 2) * TILE_SVG_BASE_WIDTH); 
 
 export const GAME_SETTINGS = {
   NUM_ROWS: 5,
   MIN_MATCH_LENGTH: 3, 
-  COLORS: ['red', 'green', 'blue', 'yellow', 'purple', 'orange'] as const,
+  COLORS: ['red', 'green', 'blue', 'yellow'] as const, // Changed to 4 colors
   INITIAL_TILES_COUNT: 5, 
   SCORE_PER_MATCHED_TILE: 10, 
   SLIDE_ANIMATION_DURATION: 200, 
@@ -41,7 +42,7 @@ export type TileColor = typeof GAME_SETTINGS.COLORS[number];
 // This maps color names to the existing HSL CSS variables for tiles (tile-0, tile-1, etc.)
 export const getTileColorStyle = (color: TileColor): { backgroundColor: string, color: string } => {
   const colorIndex = GAME_SETTINGS.COLORS.indexOf(color);
-  // Cycle through 0-5 for --tile-X theme vars. If more colors than vars, they will repeat.
+  // Cycle through 0-3 for --tile-X theme vars.
   const tileThemeVarIndex = colorIndex !== -1 ? colorIndex % GAME_SETTINGS.COLORS.length : 0; 
   
   return { 
@@ -54,3 +55,4 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
 };
+

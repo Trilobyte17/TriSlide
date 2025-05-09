@@ -1,20 +1,25 @@
 "use client";
 
-import type { Tile as TileType, TileColor } from '@/lib/tripuzzle/types';
+import type { Tile as TileType } from '@/lib/tripuzzle/types';
 import { getTileColorStyle, GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { cn } from '@/lib/utils';
 
 interface TileProps {
   tile: TileType;
+  orientation: 'up' | 'down';
 }
 
 const SVG_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
 const SVG_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
-// Points for an upward-pointing equilateral triangle: (width/2, 0), (0, height), (width, height)
-const points = `${SVG_WIDTH / 2},0 0,${SVG_HEIGHT} ${SVG_WIDTH},${SVG_HEIGHT}`;
 
-export function Tile({ tile }: TileProps) {
-  const tileStyle = getTileColorStyle(tile.color as TileColor);
+// Points for an upward-pointing equilateral triangle: (width/2, 0), (0, height), (width, height)
+const upPoints = `${SVG_WIDTH / 2},0 0,${SVG_HEIGHT} ${SVG_WIDTH},${SVG_HEIGHT}`;
+// Points for a downward-pointing equilateral triangle: (0,0), (width,0), (width/2, height)
+const downPoints = `0,0 ${SVG_WIDTH},0 ${SVG_WIDTH / 2},${SVG_HEIGHT}`;
+
+export function Tile({ tile, orientation }: TileProps) {
+  const tileStyle = getTileColorStyle(tile.color);
+  const points = orientation === 'up' ? upPoints : downPoints;
 
   return (
     <svg
@@ -26,8 +31,9 @@ export function Tile({ tile }: TileProps) {
         "select-none shadow-md transition-all duration-300 ease-out",
         tile.isNew && "animate-tile-spawn",
         tile.isMatched && "animate-tile-vanish",
+        "absolute" // Added for absolute positioning within GridDisplay
       )}
-      aria-label={`Tile with color ${tile.color}`}
+      aria-label={`Tile with color ${tile.color} pointing ${orientation}`}
     >
       <polygon points={points} style={{ fill: tileStyle.backgroundColor }} />
     </svg>
