@@ -37,11 +37,12 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         isSelected && "ring-[3px] ring-offset-1 ring-accent scale-105", // Ring for selection is outside SVG
         "hover:opacity-80 hover:scale-105"
       )}
-      style={{
-        // Drop shadow can contribute to perceived overlap, but often desired for depth.
-        // If strict "no overlap" is needed, this might also need adjustment or removal.
-        filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.3)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.1))'
-      }}
+      style={
+        {
+          // Drop shadow removed to prevent visual overlap.
+          // filter: 'drop-shadow(1px 1px 1px rgba(0,0,0,0.3)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.1))'
+        }
+      }
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}${isSelected ? ', selected' : ''}`}
       role="button" 
       tabIndex={onClick ? 0 : -1} 
@@ -64,7 +65,7 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
           fill: tileStyle.backgroundColor,
           // Stroke only for selected, otherwise 0 to prevent visual overlap at shared edges.
           stroke: isSelected ? 'hsl(var(--accent))' : 'none', 
-          strokeWidth: isSelected ? 1 : 0 
+          strokeWidth: isSelected ? 0.5 : 0 // Using a smaller stroke for selected if needed, or 0.
         }} 
       />
       <polygon 
@@ -78,4 +79,3 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
     </svg>
   );
 }
-
