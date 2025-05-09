@@ -13,16 +13,16 @@ import {
   applyGravityAndSpawn,
   checkGameOver,
   swapTiles,
-  // getNeighbors is not directly exported, but used by checkGameOver and tile click logic
+  getNeighbors, // Now directly imported and used
+  rotateTriad,  // Import new rotation function
 } from '@/lib/tripuzzle/engine';
-import { getNeighbors } from '@/lib/tripuzzle/engine'; // Explicitly import if needed for page logic directly
 import { GridDisplay } from '@/components/tripuzzle/GridDisplay';
 import { GameControls } from '@/components/tripuzzle/GameControls';
 import { GameOverDialog } from '@/components/tripuzzle/GameOverDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 
-const LOCAL_STORAGE_KEY = 'triPuzzleGameState_colorMatch_v5_swap';
+const LOCAL_STORAGE_KEY = 'triPuzzleGameState_colorMatch_v5_swap_rotate';
 
 export default function TriPuzzlePage() {
   const { toast } = useToast();
@@ -81,7 +81,7 @@ export default function TriPuzzlePage() {
         await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SPAWN_ANIMATION_DURATION));
 
       } else {
-        grid = gridWithMatchesMarked; // Ensure grid is updated even if no matches (e.g. selection cleared)
+        grid = gridWithMatchesMarked; 
         break; 
       }
     } while (madeChangesInLoop);
@@ -104,13 +104,13 @@ export default function TriPuzzlePage() {
     
     setGameState({
       ...finalInitialState,
-      grid: updateGridWithSelection(finalInitialState.grid, null), // Ensure selection cleared
+      grid: updateGridWithSelection(finalInitialState.grid, null), 
       isGameStarted: true,
       isLoading: false,
     });
 
     localStorage.removeItem(LOCAL_STORAGE_KEY);
-    toast({ title: "New Game Started!", description: "Match 3+ colors by sliding rows or swapping tiles!" });
+    toast({ title: "New Game Started!", description: "Match 3+ colors by sliding rows, swapping tiles, or rotating triads!" });
     setIsProcessingMove(false);
   }, [processMatchesAndGravity, toast, updateGridWithSelection]);
   
@@ -136,7 +136,7 @@ export default function TriPuzzlePage() {
       createNewGame();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // createNewGame is memoized
+  }, []); 
 
   const handleRestoreGame = (restore: boolean) => {
     setShowRestorePrompt(false);
@@ -159,48 +159,46 @@ export default function TriPuzzlePage() {
   useEffect(() => {
     if (gameState.isGameStarted && !gameState.isLoading && !isProcessingMove && !gameState.isGameOver) {
       if (gameState.grid && gameState.grid.length > 0 && gameState.grid[0]?.length > 0) {
-        // Save grid without selection highlights
         const gridToSave = gameState.grid.map(row => row.map(tile => tile ? {...tile, isSelected: false} : null));
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({...gameState, grid: gridToSave}));
       }
     }
-  }, [gameState, isProcessingMove]); // Added isProcessingMove to dependencies
+  }, [gameState, isProcessingMove]); 
 
 
   const handleRowSlide = useCallback(async (rowIndex: number, direction: 'left' | 'right') => {
     if (isProcessingMove || gameState.isGameOver) return;
     
     setIsProcessingMove(true);
-    setSelectedTileCoords(null); // Clear tile selection
-    setGameState(prev => ({ ...prev, grid: updateGridWithSelection(prev.grid.map(r => r.map(t => t ? {...t, isNew: false, isMatched: false } : null)), null) }));
+    setSelectedTileCoords(null); 
+    setGameState(prev => ({ ...prev, grid: updateGridWithSelection(prev.grid.map(r_val => r_val.map(t => t ? {...t, isNew: false, isMatched: false } : null)), null) }));
 
     const gridAfterSlide = slideRow(gameState.grid, rowIndex, direction);
     setGameState(prev => ({ ...prev, grid: updateGridWithSelection(gridAfterSlide, null) })); 
     await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION));
 
     const newState = await processMatchesAndGravity(gridAfterSlide, gameState.score);
-    setGameState(ns => ({...ns, ...newState})); // Use functional update for newState
+    setGameState(ns => ({...ns, ...newState})); 
         
   }, [gameState.grid, gameState.score, gameState.isGameOver, processMatchesAndGravity, isProcessingMove, updateGridWithSelection]);
 
   const handleTileClick = useCallback(async (r: number, c: number) => {
     if (isProcessingMove || gameState.isGameOver || !gameState.grid[r]?.[c]) return;
 
+    const currentGridWithoutSelection = gameState.grid.map(row => row.map(tile => tile ? {...tile, isSelected: false} : null));
+
     if (!selectedTileCoords) {
       setSelectedTileCoords({ r, c });
       setGameState(prev => ({ ...prev, grid: updateGridWithSelection(prev.grid, {r,c}) }));
     } else {
       const { r: sr, c: sc } = selectedTileCoords;
-      if (sr === r && sc === c) { // Clicked same tile
+      if (sr === r && sc === c) { 
         setSelectedTileCoords(null);
         setGameState(prev => ({ ...prev, grid: updateGridWithSelection(prev.grid, null) }));
       } else {
-        // Check if (r,c) is a neighbor of (sr,sc)
-        const currentGridWithoutSelection = gameState.grid.map(row => row.map(tile => tile ? {...tile, isSelected: false} : null));
-        const neighbors = getNeighbors(sr, sc, currentGridWithoutSelection); // Use engine's getNeighbors
-        const isNeighbor = neighbors.some(n => n.r === r && n.c === c);
+        const isEdgeNeighbor = getNeighbors(sr, sc, currentGridWithoutSelection).some(n => n.r === r && n.c === c);
 
-        if (isNeighbor) {
+        if (isEdgeNeighbor) { // Perform Swap
           setIsProcessingMove(true);
           setSelectedTileCoords(null);
           
@@ -210,9 +208,47 @@ export default function TriPuzzlePage() {
           
           const newState = await processMatchesAndGravity(gridAfterSwap, gameState.score);
           setGameState(ns => ({...ns, ...newState}));
-        } else { // Clicked a non-adjacent tile
-          setSelectedTileCoords({ r, c });
-          setGameState(prev => ({ ...prev, grid: updateGridWithSelection(prev.grid, {r,c}) }));
+        } else { // Not an edge neighbor, check for triad rotation
+          const selectedTile = currentGridWithoutSelection[sr]?.[sc];
+          const targetTile = currentGridWithoutSelection[r]?.[c];
+
+          if (selectedTile && targetTile) {
+            const selectedNeighbors = getNeighbors(sr, sc, currentGridWithoutSelection);
+            const targetNeighbors = getNeighbors(r, c, currentGridWithoutSelection);
+            
+            let middleTileCoords: { r: number; c: number } | null = null;
+            for (const sn of selectedNeighbors) {
+              const isMutualNeighbor = targetNeighbors.some(tn => tn.r === sn.r && tn.c === sn.c);
+              if (isMutualNeighbor && currentGridWithoutSelection[sn.r]?.[sn.c]) {
+                middleTileCoords = { r: sn.r, c: sn.c };
+                break;
+              }
+            }
+
+            if (middleTileCoords) { // Perform Triad Rotation
+              setIsProcessingMove(true);
+              const p1 = {r: sr, c: sc};
+              const p2 = middleTileCoords;
+              const p3 = {r, c};
+              setSelectedTileCoords(null);
+              
+              // Order for rotation: p1 data -> p2 pos, p2 data -> p3 pos, p3 data -> p1 pos
+              const gridAfterRotation = rotateTriad(currentGridWithoutSelection, p1, p2, p3);
+              setGameState(prev => ({ ...prev, grid: updateGridWithSelection(gridAfterRotation, null) }));
+              await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.TRIAD_ROTATE_ANIMATION_DURATION));
+              
+              const newState = await processMatchesAndGravity(gridAfterRotation, gameState.score);
+              setGameState(ns => ({...ns, ...newState}));
+
+            } else { // Not a valid rotation partner, so select the new tile
+              setSelectedTileCoords({ r, c });
+              setGameState(prev => ({ ...prev, grid: updateGridWithSelection(prev.grid, {r,c}) }));
+            }
+          } else {
+             // Fallback: Should not happen if tiles exist. Select new tile.
+             setSelectedTileCoords({ r, c });
+             setGameState(prev => ({ ...prev, grid: updateGridWithSelection(prev.grid, {r,c}) }));
+          }
         }
       }
     }
@@ -270,7 +306,7 @@ export default function TriPuzzlePage() {
               onTileClick={handleTileClick}
               selectedTileCoords={selectedTileCoords}
             />
-            {isProcessingMove && !gameState.isGameOver && ( // Don't show processing if game over dialog is up
+            {isProcessingMove && !gameState.isGameOver && ( 
               <div className="fixed inset-0 flex items-center justify-center bg-background/10 z-40 backdrop-blur-sm">
                 <p className="text-lg font-semibold p-4 bg-card rounded-md shadow-lg animate-pulse">Processing...</p>
               </div>
@@ -281,7 +317,7 @@ export default function TriPuzzlePage() {
               onNewGame={createNewGame}
             />
             <footer className="mt-8 text-center text-sm text-muted-foreground">
-              <p>Slide rows or click adjacent tiles to swap and match 3+ colors.</p>
+              <p>Slide rows, click adjacent tiles to swap, or click diagonally adjacent tiles to rotate a triad.</p>
               <p>Inspired by Trism. Built with Next.js & ShadCN UI.</p>
             </footer>
           </>
@@ -290,3 +326,4 @@ export default function TriPuzzlePage() {
     </>
   );
 }
+
