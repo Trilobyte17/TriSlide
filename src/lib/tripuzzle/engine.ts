@@ -13,31 +13,22 @@ export const initializeGrid = (numRows: number): GridData => {
   return grid;
 };
 
-const getRandomEmptyCell = (grid: GridData): { r: number; c: number } | null => {
-  const emptyCells: { r: number; c: number }[] = [];
-  grid.forEach((row, r) => {
-    row.forEach((cell, c) => {
-      if (!cell) {
-        emptyCells.push({ r, c });
-      }
-    });
-  });
-  if (emptyCells.length === 0) return null;
-  return emptyCells[Math.floor(Math.random() * emptyCells.length)];
-};
+// Removed getRandomEmptyCell as addInitialTiles will now fill all cells.
 
-export const addInitialTiles = (grid: GridData, count: number): GridData => {
-  let newGrid = grid.map(row => [...row]);
-  for (let i = 0; i < count; i++) {
-    const pos = getRandomEmptyCell(newGrid);
-    if (pos) {
-      newGrid[pos.r][pos.c] = {
-        id: generateUniqueId(),
-        color: getRandomColor(),
-        row: pos.r,
-        col: pos.c,
-        isNew: true,
-      };
+export const addInitialTiles = (grid: GridData): GridData => {
+  const newGrid = grid.map(row => [...row]); // Deep copy
+  for (let r = 0; r < newGrid.length; r++) {
+    for (let c = 0; c < newGrid[r].length; c++) {
+      // Fill every cell
+      if (newGrid[r][c] === null) {
+        newGrid[r][c] = {
+          id: generateUniqueId(),
+          color: getRandomColor(),
+          row: r,
+          col: c,
+          isNew: true, // Mark as new for spawn animation
+        };
+      }
     }
   }
   return newGrid;
@@ -163,6 +154,21 @@ export const removeMatchedTiles = (grid: GridData): GridData => {
   return grid.map(row => row.map(tile => (tile && tile.isMatched ? null : tile)));
 };
 
+// Utility to get a random empty cell, needed for spawning new tiles
+const getRandomEmptyCell = (grid: GridData): { r: number; c: number } | null => {
+  const emptyCells: { r: number; c: number }[] = [];
+  grid.forEach((row, r) => {
+    row.forEach((cell, c) => {
+      if (!cell) {
+        emptyCells.push({ r, c });
+      }
+    });
+  });
+  if (emptyCells.length === 0) return null;
+  return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+};
+
+
 // Applies gravity and spawns new tiles
 export const applyGravityAndSpawn = (grid: GridData): GridData => {
   let newGrid = grid.map(row => row.map(t => t ? {...t, isNew: false, isMatched: false} : null)); // Deep copy
@@ -191,8 +197,7 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
     }
   }
   
-  // Spawn new tiles in empty top-most cells for each conceptual "column"
-  // More robust: fill all empty cells by spawning.
+  // Spawn new tiles in empty cells.
   let emptyCell = getRandomEmptyCell(newGrid);
   while(emptyCell) {
       newGrid[emptyCell.r][emptyCell.c] = {
@@ -202,8 +207,7 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
         col: emptyCell.c,
         isNew: true,
       };
-      emptyCell = getRandomEmptyCell(newGrid); // find next for multiple spawns if needed, or just one per turn
-      // For now, let's assume multiple tiles can spawn to fill up after matches
+      emptyCell = getRandomEmptyCell(newGrid);
   }
 
 
@@ -224,7 +228,8 @@ export const checkGameOver = (grid: GridData): boolean => {
     if (!isFull) break;
   }
 
-  // If not full, game is not over
+  // If not full, game is not over (unless specific game rules say otherwise, e.g., cannot spawn new tiles)
+  // For now, if not full, consider game not over as new tiles can potentially spawn.
   if (!isFull) return false;
 
   // If full, check if any slide can create a match
@@ -242,5 +247,5 @@ export const checkGameOver = (grid: GridData): boolean => {
     return true; // Full and no slide creates a match
   }
 
-  return false; // Has matches or not full
+  return false; // Has matches or not full implies game is not over.
 };

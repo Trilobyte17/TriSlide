@@ -1,3 +1,4 @@
+
 export interface Tile {
   id: string;
   color: string; // Changed from value: number
@@ -27,7 +28,7 @@ export const GAME_SETTINGS = {
   NUM_ROWS: 5,
   MIN_MATCH_LENGTH: 3, 
   COLORS: ['red', 'green', 'blue', 'yellow'] as const, // Changed to 4 colors
-  INITIAL_TILES_COUNT: 5, 
+  // INITIAL_TILES_COUNT: 5, // This is no longer used by addInitialTiles to determine how many tiles to add initially. addInitialTiles now fills the entire grid.
   SCORE_PER_MATCHED_TILE: 10, 
   SLIDE_ANIMATION_DURATION: 200, 
   MATCH_ANIMATION_DURATION: 300, 

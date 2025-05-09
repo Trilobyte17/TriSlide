@@ -37,7 +37,8 @@ export default function TriPuzzlePage() {
   const createNewGame = useCallback(() => {
     setIsProcessingMove(true);
     const initialGrid = initializeGrid(GAME_SETTINGS.NUM_ROWS);
-    const gridWithTiles = addInitialTiles(initialGrid, GAME_SETTINGS.INITIAL_TILES_COUNT);
+    // Updated call to addInitialTiles, no longer needs count
+    const gridWithTiles = addInitialTiles(initialGrid); 
     
     let currentGrid = gridWithTiles;
     const { newGrid: gridAfterInitialMatchCheck, hasMatches: initialHasMatches } = findAndMarkMatches(currentGrid);
@@ -135,7 +136,7 @@ export default function TriPuzzlePage() {
     }
     return { ...gameState, grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
 
-  }, [gameState.isGameOver, toast]);
+  }, [gameState.isGameOver, toast]); // gameState removed from dependency array, only isGameOver is needed from it.
 
   // const handleRowSlide = useCallback(async (rowIndex: number, direction: 'left' | 'right') => {
   //   if (isProcessingMove || gameState.isGameOver) return;
