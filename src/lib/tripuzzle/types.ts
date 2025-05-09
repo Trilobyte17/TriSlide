@@ -1,4 +1,3 @@
-
 export interface Tile {
   id: string;
   color: string; // Changed from value: number
@@ -20,34 +19,36 @@ export interface GameState {
   isLoading: boolean;
 }
 
+const TILE_SVG_BASE_WIDTH = 60; // px
+const TILE_SVG_HEIGHT = Math.round((Math.sqrt(3) / 2) * TILE_SVG_BASE_WIDTH); // height of equilateral triangle
+
 export const GAME_SETTINGS = {
   NUM_ROWS: 5,
-  // MAX_TILE_VALUE: 10, // No longer applicable for color matching
-  MIN_MATCH_LENGTH: 3, // Minimum number of tiles in a sequence to form a match
-  COLORS: ['red', 'green', 'blue', 'yellow', 'purple', 'orange'] as const, // Define available tile colors
-  INITIAL_TILES_COUNT: 5, // Initial number of tiles on the grid
-  // NEW_TILE_VALUE: 1, // Replaced by random color spawning
-  SCORE_PER_MATCHED_TILE: 10, // Points awarded per tile in a match
-  // SCORE_MERGE_1_TO_0: 10, // No longer applicable
-  // SCORE_MERGE_MAX_TO_0: 1000, // No longer applicable
-  // SCORE_MERGE_N_TO_N1_BASE: 10, // No longer applicable
-  SLIDE_ANIMATION_DURATION: 200, // ms for slide animation
-  MATCH_ANIMATION_DURATION: 300, // ms for match/disappear animation
-  SPAWN_ANIMATION_DURATION: 300, // ms for new tiles appearing
+  MIN_MATCH_LENGTH: 3, 
+  COLORS: ['red', 'green', 'blue', 'yellow', 'purple', 'orange'] as const,
+  INITIAL_TILES_COUNT: 5, 
+  SCORE_PER_MATCHED_TILE: 10, 
+  SLIDE_ANIMATION_DURATION: 200, 
+  MATCH_ANIMATION_DURATION: 300, 
+  SPAWN_ANIMATION_DURATION: 300,
+  TILE_BASE_WIDTH: TILE_SVG_BASE_WIDTH, // For layout calculations
+  TILE_HEIGHT: TILE_SVG_HEIGHT,     // For layout calculations
 } as const;
 
 export type TileColor = typeof GAME_SETTINGS.COLORS[number];
 
 // Helper to get tile color style based on color string
 // This maps color names to the existing HSL CSS variables for tiles (tile-0, tile-1, etc.)
-export const getTileColorStyle = (color: TileColor): React.CSSProperties => {
+export const getTileColorStyle = (color: TileColor): { backgroundColor: string, color: string } => {
   const colorIndex = GAME_SETTINGS.COLORS.indexOf(color);
-  const tileThemeVarIndex = colorIndex !== -1 ? colorIndex % 6 : 0; // Cycle through 0-5 for theme vars
+  // Cycle through 0-5 for --tile-X theme vars. If more colors than vars, they will repeat.
+  const tileThemeVarIndex = colorIndex !== -1 ? colorIndex % GAME_SETTINGS.COLORS.length : 0; 
   
   return { 
     backgroundColor: `hsl(var(--tile-${tileThemeVarIndex}))`, 
+    // Text color is not directly used for SVG fill but kept for consistency if needed later
     color: `hsl(var(--tile-text))` 
-  } as React.CSSProperties;
+  };
 };
 
 export const getRandomColor = (): TileColor => {
