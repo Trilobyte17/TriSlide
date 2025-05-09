@@ -34,12 +34,12 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         "select-none transition-all duration-300 ease-out cursor-pointer",
         tile.isNew && "animate-tile-spawn",
         tile.isMatched && "animate-tile-vanish",
-        isSelected && "ring-[0px] ring-offset-0 scale-105", 
-        "hover:opacity-80 hover:scale-105"
+        // Removed scale-105 from isSelected, relying on stroke for selection visual
+        "hover:opacity-80 hover:scale-105" 
       )}
       style={
         {
-          // Drop shadow can be added here if desired, but removed for clarity with borders
+          // Drop shadow can be added here if desired
         }
       }
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}${isSelected ? ', selected' : ''}`}
@@ -62,8 +62,8 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
         points={points} 
         style={{ 
           fill: tileStyle.backgroundColor,
-          stroke: isSelected ? 'hsl(var(--accent))' : '#000000', // Changed to black
-          strokeWidth: 0.5 
+          stroke: isSelected ? 'hsl(var(--accent))' : '#000000', 
+          strokeWidth: isSelected ? 2 : 0.5 // Thicker stroke for selected tiles
         }} 
       />
       <polygon 
@@ -73,3 +73,4 @@ export function Tile({ tile, onClick, isSelected }: TileProps) {
     </svg>
   );
 }
+
