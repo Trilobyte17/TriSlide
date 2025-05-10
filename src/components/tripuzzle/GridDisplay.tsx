@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -25,34 +26,31 @@ export function GridDisplay({
   const TILE_BASE_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   
-  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const numGridCols = GAME_SETTINGS.GRID_WIDTH_TILES;
+  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES; 
+  const numGridCols = GAME_SETTINGS.GRID_WIDTH_TILES; 
 
-  // Adjusted container height calculation
-  const containerWidth = numGridCols * (TILE_BASE_WIDTH / 2) + (TILE_BASE_WIDTH / 2);
+  // Calculate the maximum width needed for any row
+  let maxWidthForRow = 0;
+  for (let r = 0; r < numGridRows; r++) {
+    let currentWidth = 0;
+    for (let c = 0; c < numGridCols; c++) {
+      if (gridData[r]?.[c]) { // Check if a tile exists at this conceptual coordinate
+        // For 'up' tiles, the base starts at c * (TILE_BASE_WIDTH / 2) and extends to c * (TILE_BASE_WIDTH / 2) + TILE_BASE_WIDTH
+        // For 'down' tiles, it's similar.
+        // The rightmost point of any tile in column c is c * (TILE_BASE_WIDTH / 2) + TILE_BASE_WIDTH
+        currentWidth = Math.max(currentWidth, c * (TILE_BASE_WIDTH / 2) + TILE_BASE_WIDTH);
+      }
+    }
+    maxWidthForRow = Math.max(maxWidthForRow, currentWidth);
+  }
+  
+  const containerWidth = maxWidthForRow;
   const containerHeight = numGridRows * TILE_HEIGHT; 
   
   const slideButtonSize = TILE_HEIGHT * 0.8; 
 
   return (
     <div className="flex items-center justify-center space-x-1 my-4">
-      <div className="flex flex-col justify-around" style={{ height: `${containerHeight}px`, minWidth: `${slideButtonSize + 4}px`}}>
-        {gridData.map((_, r) => (
-          <Button
-            key={`left-slide-${r}`}
-            variant="ghost"
-            size="icon"
-            className="p-0"
-            style={{ height: `${TILE_HEIGHT}px`, width: `${slideButtonSize}px` }}
-            onClick={() => onRowSlide(r, 'left')}
-            disabled={isProcessingMove}
-            aria-label={`Slide row ${r + 1} left`}
-          >
-            <ArrowLeftCircle size={slideButtonSize} />
-          </Button>
-        ))}
-      </div>
-
       <div 
         className="relative p-1 bg-black/20 dark:bg-black/40 rounded-lg shadow-inner" 
         role="grid" 
@@ -67,9 +65,15 @@ export function GridDisplay({
             if (!tileData) {
               return null;
             }
-            const tileY = r_idx * TILE_HEIGHT; 
-            const tileX = c_idx * (TILE_BASE_WIDTH / 2);
-            const isSelected = selectedTileCoords?.r === r_idx && selectedTileCoords?.c === c_idx;
+            // Use tileData.row and tileData.col for positioning, as these are the source of truth
+            const tileY = tileData.row * TILE_HEIGHT; 
+            // Stagger 'down' pointing triangles by half a base width
+            // tileData.col determines the horizontal position index.
+            // If a tile is (r,0) up, its left point is at 0. If it is (r,1) down, its left point is at 0.5 * TILE_BASE_WIDTH
+            // If it is (r,2) up, its left point is at 1.0 * TILE_BASE_WIDTH
+            const tileX = tileData.col * (TILE_BASE_WIDTH / 2);
+            
+            const isSelected = selectedTileCoords?.r === tileData.row && selectedTileCoords?.c === tileData.col;
             
             return (
               <div
@@ -81,37 +85,20 @@ export function GridDisplay({
                   width: `${TILE_BASE_WIDTH}px`, 
                   height: `${TILE_HEIGHT}px`,
                   transition: 'left 0.2s ease, top 0.2s ease', 
-                  pointerEvents: 'none', // Ensure clicks pass through this div to the SVG
+                  pointerEvents: 'none', 
                 }}
                 role="gridcell"
-                aria-label={`Tile at data row ${r_idx}, data col ${c_idx} with color ${tileData.color}`}
+                aria-label={`Tile at data row ${tileData.row}, data col ${tileData.col} with color ${tileData.color}`}
               >
                 <Tile
                   tile={tileData}
-                  onClick={() => onTileClick(r_idx,c_idx)}
+                  onClick={() => onTileClick(tileData.row,tileData.col)}
                   isSelected={isSelected}
                 />
               </div>
             );
           });
         })}
-      </div>
-
-       <div className="flex flex-col justify-around" style={{ height: `${containerHeight}px`, minWidth: `${slideButtonSize + 4}px` }}>
-        {gridData.map((_, r) => ( 
-          <Button
-            key={`right-slide-${r}`}
-            variant="ghost"
-            size="icon"
-            className="p-0"
-            style={{ height: `${TILE_HEIGHT}px`, width: `${slideButtonSize}px`}}
-            onClick={() => onRowSlide(r, 'right')}
-            disabled={isProcessingMove}
-            aria-label={`Slide row ${r + 1} right`}
-          >
-            <ArrowRightCircle size={slideButtonSize} />
-          </Button>
-        ))}
       </div>
     </div>
   );

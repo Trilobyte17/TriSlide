@@ -119,12 +119,14 @@ export default function TriPuzzlePage() {
     if (savedStateRaw) {
       try {
         const savedState = JSON.parse(savedStateRaw) as GameState;
-        if (savedState.grid && savedState.grid.length === GAME_SETTINGS.GRID_HEIGHT_TILES &&
-            savedState.grid[0]?.length === GAME_SETTINGS.GRID_WIDTH_TILES &&
+        if (savedState.grid && savedState.grid.length === GAME_SETTINGS.GRID_HEIGHT_TILES && // Use GAME_SETTINGS
+            savedState.grid[0]?.length === GAME_SETTINGS.GRID_WIDTH_TILES && // Use GAME_SETTINGS
             savedState.isGameStarted && !savedState.isGameOver) {
            setGameState({...savedState, grid: updateGridWithSelection(savedState.grid, null), isLoading: true}); 
            setShowRestorePrompt(true); 
         } else {
+          // If dimensions mismatch, clear storage and start new game
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
           createNewGame(); 
         }
       } catch (error) {
@@ -136,7 +138,7 @@ export default function TriPuzzlePage() {
       createNewGame();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []); // createNewGame is stable due to useCallback
 
   const handleRestoreGame = (restore: boolean) => {
     setShowRestorePrompt(false);
@@ -144,11 +146,20 @@ export default function TriPuzzlePage() {
        const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
        if (savedStateRaw) {
          const savedState = JSON.parse(savedStateRaw) as GameState;
-         setGameState({...savedState, grid: updateGridWithSelection(savedState.grid, null), isLoading: false});
-         processMatchesAndGravity(savedState.grid, savedState.score).then(newState => {
-           setGameState(ns => ({...ns, ...newState, grid: updateGridWithSelection(newState.grid, null)}));
-         });
-         toast({ title: "Game Restored", description: "Welcome back!" });
+         // Double check dimensions on restore as well
+         if (savedState.grid && savedState.grid.length === GAME_SETTINGS.GRID_HEIGHT_TILES &&
+             savedState.grid[0]?.length === GAME_SETTINGS.GRID_WIDTH_TILES) {
+            setGameState({...savedState, grid: updateGridWithSelection(savedState.grid, null), isLoading: false});
+            processMatchesAndGravity(savedState.grid, savedState.score).then(newState => {
+              setGameState(ns => ({...ns, ...newState, grid: updateGridWithSelection(newState.grid, null)}));
+            });
+            toast({ title: "Game Restored", description: "Welcome back!" });
+         } else {
+           localStorage.removeItem(LOCAL_STORAGE_KEY);
+           createNewGame(); // Dimensions mismatch
+         }
+       } else { // Should not happen if showRestorePrompt was true
+           createNewGame();
        }
     } else {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -326,4 +337,3 @@ export default function TriPuzzlePage() {
     </>
   );
 }
-
