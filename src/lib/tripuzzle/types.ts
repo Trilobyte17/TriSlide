@@ -7,7 +7,7 @@ export interface Tile {
   orientation: 'up' | 'down'; // Added to define triangle orientation
   isNew?: boolean; 
   isMatched?: boolean;
-  isSelected?: boolean; // Added for UI indication of selected tile
+  // isSelected?: boolean; // Removed as click-to-select is being removed
 }
 
 export type GridRow = (Tile | null)[];
@@ -32,7 +32,7 @@ const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
   GRID_WIDTH_TILES: 11, 
-  GRID_HEIGHT_TILES: 12,  // Increased from 8 to 12
+  GRID_HEIGHT_TILES: 15,  // Increased from 12 to 15
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const, 
   SCORE_PER_MATCHED_TILE: 10,
@@ -44,6 +44,7 @@ export const GAME_SETTINGS = {
   TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH, // Use integer for base width
   TILE_HEIGHT: PRECISE_TILE_HEIGHT,      // Use precise float for height
   TILE_BORDER_WIDTH: 1, // Added for tile borders
+  TILE_BORDER_COLOR_HSL: "0 0% 0%", // Black border for tiles
 } as const;
 
 export type TileColor = typeof GAME_SETTINGS.COLORS[number];
@@ -61,3 +62,4 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
 };
+
