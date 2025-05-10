@@ -51,9 +51,11 @@ export function GridDisplay({
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
   // Calculate container dimensions for a perfectly tessellated grid
-  // Width: (Max number of tiles in a row / 2 + 0.5) * Tile Base Width
-  // For N tiles, this is (N-1) * W/2 for positions, plus W for the last tile's extent. Total ( (N-1)/2 + 1 ) * W = (N+1)/2 * W
-  const containerWidth = ((numGridCols + 1) / 2) * TILE_BASE_WIDTH;
+  // The number of tiles in a logical row is numGridCols.
+  // Max extent for even rows: (numGridCols+1)/2 * TILE_BASE_WIDTH.
+  // Max extent for odd rows (which are shifted by TILE_BASE_WIDTH/2): (numGridCols+2)/2 * TILE_BASE_WIDTH.
+  // Container must accommodate the wider odd rows.
+  const containerWidth = (numGridCols + 2) * TILE_BASE_WIDTH / 2;
   // Height: Number of rows * Tile Height
   const containerHeight = numGridRows * TILE_HEIGHT; 
 
@@ -63,8 +65,6 @@ export function GridDisplay({
       finalX += TILE_BASE_WIDTH / 2;
     }
     // finalY is the y-coordinate of the "top" of the bounding box for the triangle.
-    // For 'up' triangles, their tip is on this line (SVG points have tip at local y=0).
-    // For 'down' triangles, their base is on this line (SVG points have base at local y=0).
     const finalY = r * TILE_HEIGHT;
     return { x: finalX, y: finalY };
   };
@@ -72,7 +72,6 @@ export function GridDisplay({
   const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
     if (isProcessingMoveRef.current || activeDrag) return;
     
-    // Check if the clicked tile actually exists
     if (!gridDataRef.current[r]?.[c]) return;
 
     if (event.type === 'mousedown') event.preventDefault();
@@ -91,7 +90,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]); // Removed gridDataRef from dependencies as it's a ref
+  }, [activeDrag]);
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -115,9 +114,7 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              // For a 'row' drag, select all non-null tiles in that specific logical row 'prevDrag.startTileR'
-              // Their visual appearance forms a jagged line, but the drag affects the logical row.
-              for(let colIdx = 0; colIdx < numGridCols; colIdx++) { // Iterate up to the max columns in data
+              for(let colIdx = 0; colIdx < numGridCols; colIdx++) {
                 if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
                   rowPath.push({r: prevDrag.startTileR, c: colIdx});
                 }
@@ -194,7 +191,7 @@ export function GridDisplay({
       document.removeEventListener('touchend', handleDragEnd);
       document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, TILE_BASE_WIDTH, numGridCols]); // numGridCols is stable
+  }, [activeDrag, TILE_BASE_WIDTH, numGridCols]);
 
   return (
     <div
@@ -258,4 +255,3 @@ export function GridDisplay({
       )}
     </div>
   );
-}
