@@ -4,14 +4,17 @@ export interface Tile {
   color: string; 
   row: number;
   col: number;
-  orientation: 'up' | 'down'; // Added to define triangle orientation
+  orientation: 'up' | 'down';
   isNew?: boolean; 
   isMatched?: boolean;
-  // isSelected?: boolean; // Removed as click-to-select is being removed
 }
 
 export type GridRow = (Tile | null)[];
 export type GridData = GridRow[];
+
+export type DiagonalType = 'sum' | 'diff'; // 'sum' for r+c=k (like '/'), 'diff' for r-c=k (like '\')
+export type SlideDirection = 'forward' | 'backward';
+
 
 export interface GameState {
   grid: GridData;
@@ -19,6 +22,7 @@ export interface GameState {
   isGameOver: boolean;
   isGameStarted: boolean;
   isLoading: boolean;
+  // selectedTileForDrag?: { r: number; c: number } | null; // For initiating drag from a specific tile
 }
 
 export interface GridDimensions {
@@ -27,24 +31,22 @@ export interface GridDimensions {
 }
 
 const TARGET_TILE_BASE_WIDTH = 40; 
-// Precise height for an equilateral triangle based on its base width
 const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
   GRID_WIDTH_TILES: 11, 
-  GRID_HEIGHT_TILES: 15,  // Increased from 12 to 15
+  GRID_HEIGHT_TILES: 15,
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const, 
   SCORE_PER_MATCHED_TILE: 10,
-  SLIDE_ANIMATION_DURATION: 200, // ms
-  MATCH_ANIMATION_DURATION: 300, // ms
-  SPAWN_ANIMATION_DURATION: 300, // ms
-  SWAP_ANIMATION_DURATION: 150, // ms for tile swap visual
-  TRIAD_ROTATE_ANIMATION_DURATION: 250, // ms for triad rotation visual
-  TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH, // Use integer for base width
-  TILE_HEIGHT: PRECISE_TILE_HEIGHT,      // Use precise float for height
-  TILE_BORDER_WIDTH: 1, // Added for tile borders
-  TILE_BORDER_COLOR_HSL: "0 0% 0%", // Black border for tiles
+  SLIDE_ANIMATION_DURATION: 150, // ms, reduced for snappier feel
+  MATCH_ANIMATION_DURATION: 300, 
+  SPAWN_ANIMATION_DURATION: 300, 
+  DRAG_THRESHOLD: TARGET_TILE_BASE_WIDTH / 3, // Distance to move before drag axis is locked
+  TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH, 
+  TILE_HEIGHT: PRECISE_TILE_HEIGHT,      
+  TILE_BORDER_WIDTH: 1, 
+  TILE_BORDER_COLOR_HSL: "0 0% 0%", 
 } as const;
 
 export type TileColor = typeof GAME_SETTINGS.COLORS[number];
@@ -62,4 +64,3 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
 };
-

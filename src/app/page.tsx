@@ -2,19 +2,18 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { GameState, GridData } from '@/lib/tripuzzle/types';
+import type { GameState, GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { 
   initializeGrid, 
   addInitialTiles, 
   slideRow, 
+  slideLine, // Import slideLine for diagonal slides
+  getTilesOnDiagonal, // To get coordinates for diagonal lines
   findAndMarkMatches,
   removeMatchedTiles,
   applyGravityAndSpawn,
   checkGameOver,
-  swapTiles, 
-  rotateTriad,  
-  getNeighbors, // Explicitly import if needed for page logic directly
 } from '@/lib/tripuzzle/engine';
 import { GridDisplay } from '@/components/tripuzzle/GridDisplay';
 import { GameControls } from '@/components/tripuzzle/GameControls';
@@ -22,9 +21,9 @@ import { GameOverDialog } from '@/components/tripuzzle/GameOverDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 
-const LOCAL_STORAGE_KEY = 'triSlideGameState_v7_noClickSelect'; // Updated key for new app name
+const LOCAL_STORAGE_KEY = 'triSlideGameState_v8_diagDrag';
 
-export default function TriSlidePage() { // Renamed component for clarity
+export default function TriSlidePage() {
   const { toast } = useToast();
   const [gameState, setGameState] = useState<GameState>({
     grid: initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES),
@@ -81,7 +80,7 @@ export default function TriSlidePage() { // Renamed component for clarity
     }
     setIsProcessingMove(false);
     return { ...gameState, grid: grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
-  }, [toast, gameState.isGameOver]);
+  }, [toast, gameState.isGameOver, gameState]); // Added gameState to dependencies
 
   const createNewGame = useCallback(async () => {
     setIsProcessingMove(true);
@@ -97,7 +96,7 @@ export default function TriSlidePage() { // Renamed component for clarity
     });
 
     localStorage.removeItem(LOCAL_STORAGE_KEY);
-    toast({ title: "New Game Started!", description: "Match 3+ colors. Drag functionality coming soon!" });
+    toast({ title: "New Game Started!", description: "Drag rows or diagonals to match 3+ colors." });
     setIsProcessingMove(false);
   }, [processMatchesAndGravity, toast]);
   
@@ -124,7 +123,7 @@ export default function TriSlidePage() { // Renamed component for clarity
       createNewGame();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // createNewGame will be stable due to useCallback
 
   const handleRestoreGame = (restore: boolean) => {
     setShowRestorePrompt(false);
@@ -161,14 +160,32 @@ export default function TriSlidePage() { // Renamed component for clarity
   }, [gameState, isProcessingMove]); 
 
 
-  const handleRowSlide = useCallback(async (rowIndex: number, direction: 'left' | 'right') => {
+  const handleSlideCommit = useCallback(async (
+    lineType: 'row' | DiagonalType, 
+    identifier: number | { r: number, c: number }, // rowIndex for 'row', {r,c} of a tile on diagonal for 'sum'/'diff'
+    direction: SlideDirection | ('left' | 'right') // 'left'/'right' for row, SlideDirection for diagonal
+  ) => {
     if (isProcessingMove || gameState.isGameOver) return;
     
     setIsProcessingMove(true);
     const gridWithResets = gameState.grid.map(r_val => r_val.map(t => t ? {...t, isNew: false, isMatched: false } : null));
     setGameState(prev => ({ ...prev, grid: gridWithResets }));
 
-    const gridAfterSlide = slideRow(gridWithResets, rowIndex, direction); 
+    let gridAfterSlide: GridData;
+
+    if (lineType === 'row' && typeof identifier === 'number') {
+      gridAfterSlide = slideRow(gridWithResets, identifier, direction as 'left' | 'right');
+    } else if ((lineType === 'sum' || lineType === 'diff') && typeof identifier === 'object') {
+      const lineCoords = getTilesOnDiagonal(gridWithResets, identifier.r, identifier.c, lineType);
+      if (lineCoords.length > 1) {
+        gridAfterSlide = slideLine(gridWithResets, lineCoords, direction as SlideDirection);
+      } else {
+        gridAfterSlide = gridWithResets; // No slide if line too short
+      }
+    } else {
+      gridAfterSlide = gridWithResets; // Should not happen
+    }
+    
     setGameState(prev => ({ ...prev, grid: gridAfterSlide })); 
     await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION));
 
@@ -224,7 +241,7 @@ export default function TriSlidePage() { // Renamed component for clarity
             <GridDisplay
               gridData={gameState.grid}
               isProcessingMove={isProcessingMove}
-              onRowSlide={handleRowSlide} // Re-added for drag interaction logic
+              onSlideCommit={handleSlideCommit}
             />
             {isProcessingMove && !gameState.isGameOver && ( 
               <div className="fixed inset-0 flex items-center justify-center bg-background/10 z-40 backdrop-blur-sm">
@@ -237,7 +254,7 @@ export default function TriSlidePage() { // Renamed component for clarity
               onNewGame={createNewGame}
             />
             <footer className="mt-8 text-center text-sm text-muted-foreground">
-              <p>Drag rows to match 3+ colors.</p>
+              <p>Drag rows or diagonals to match 3+ colors.</p>
               <p>Inspired by Trism. Built with Next.js & ShadCN UI.</p>
             </footer>
           </>
