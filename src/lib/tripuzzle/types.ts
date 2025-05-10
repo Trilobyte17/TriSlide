@@ -22,7 +22,6 @@ export interface GameState {
   isGameOver: boolean;
   isGameStarted: boolean;
   isLoading: boolean;
-  // selectedTileForDrag?: { r: number; c: number } | null; // For initiating drag from a specific tile
 }
 
 export interface GridDimensions {
@@ -39,10 +38,10 @@ export const GAME_SETTINGS = {
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const, 
   SCORE_PER_MATCHED_TILE: 10,
-  SLIDE_ANIMATION_DURATION: 150, // ms, reduced for snappier feel
+  SLIDE_ANIMATION_DURATION: 150, // ms
   MATCH_ANIMATION_DURATION: 300, 
   SPAWN_ANIMATION_DURATION: 300, 
-  DRAG_THRESHOLD: TARGET_TILE_BASE_WIDTH / 3, // Distance to move before drag axis is locked
+  DRAG_THRESHOLD: TARGET_TILE_BASE_WIDTH / 3, 
   TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH, 
   TILE_HEIGHT: PRECISE_TILE_HEIGHT,      
   TILE_BORDER_WIDTH: 1, 
@@ -64,3 +63,4 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
 };
+

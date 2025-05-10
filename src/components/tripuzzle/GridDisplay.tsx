@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -82,7 +83,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]); // Removed TILE_HEIGHT, TILE_BASE_WIDTH from deps as they are from GAME_SETTINGS
+  }, [activeDrag]);
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -126,8 +127,12 @@ export function GridDisplay({
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
           } else if (currentDragAxis === 'diff') { 
+            // Project delta onto diagonal vector for 'diff' (approx. 60 deg from positive x-axis)
+            // Vector for 'diff' is roughly (cos(60), sin(60)) = (0.5, sqrt(3)/2)
             currentVisualOffset = deltaX * 0.5 + deltaY * (Math.sqrt(3)/2);
           } else if (currentDragAxis === 'sum') { 
+            // Project delta onto diagonal vector for 'sum' (approx. 120 deg from positive x-axis, or -60 deg)
+            // Vector for 'sum' is roughly (cos(120), sin(120)) = (-0.5, sqrt(3)/2)
             currentVisualOffset = deltaX * (-0.5) + deltaY * (Math.sqrt(3)/2);
           }
         }
@@ -144,12 +149,12 @@ export function GridDisplay({
     };
 
     const handleDragEnd = () => {
-      const currentActiveDragState = activeDrag; // Capture state before resetting
+      const currentActiveDragState = activeDrag; 
       
-      setActiveDrag(null); // Reset GridDisplay's internal drag state first
+      setActiveDrag(null); 
 
       if (!currentActiveDragState || !currentActiveDragState.dragAxisLocked || !currentActiveDragState.draggedLineCoords || currentActiveDragState.draggedLineCoords.length < 2) {
-        return; // No valid drag to commit
+        return; 
       }
 
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = currentActiveDragState;
@@ -173,7 +178,7 @@ export function GridDisplay({
       document.addEventListener('mouseup', handleDragEnd);
       document.addEventListener('touchmove', handleDragMove, { passive: false }); 
       document.addEventListener('touchend', handleDragEnd);
-      document.addEventListener('touchcancel', handleDragEnd); // Added for robustness
+      document.addEventListener('touchcancel', handleDragEnd);
     }
 
     return () => {
@@ -181,9 +186,9 @@ export function GridDisplay({
       document.removeEventListener('mouseup', handleDragEnd);
       document.removeEventListener('touchmove', handleDragMove);
       document.removeEventListener('touchend', handleDragEnd);
-      document.removeEventListener('touchcancel', handleDragEnd); // Cleanup
+      document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, TILE_BASE_WIDTH, numGridCols]); // numGridCols and TILE_BASE_WIDTH are stable. onSlideCommitRef is a ref.
+  }, [activeDrag, TILE_BASE_WIDTH, numGridCols]);
 
   return (
     <div
@@ -210,10 +215,18 @@ export function GridDisplay({
               if (activeDrag.dragAxisLocked === 'row') {
                 transform = `translateX(${activeDrag.visualOffset}px)`;
               } else if (activeDrag.dragAxisLocked === 'diff') { 
-                const normX = 0.5; const normY = Math.sqrt(3)/2;
+                // For 'diff' diagonal (like '\'), visual offset projects to this line's direction
+                // A simple approximation: transform along a line at roughly 60 degrees.
+                // Positive visualOffset should move tiles "down-rightish"
+                const normX = 0.5; // cos(60deg)
+                const normY = Math.sqrt(3)/2; // sin(60deg)
                 transform = `translate(${activeDrag.visualOffset * normX}px, ${activeDrag.visualOffset * normY}px)`;
               } else if (activeDrag.dragAxisLocked === 'sum') { 
-                const normX = -0.5; const normY = Math.sqrt(3)/2;
+                // For 'sum' diagonal (like '/'), visual offset projects to this line's direction
+                // A simple approximation: transform along a line at roughly 120 degrees (or -60 from y-axis).
+                // Positive visualOffset should move tiles "down-leftish"
+                const normX = -0.5; // cos(120deg)
+                const normY = Math.sqrt(3)/2; // sin(120deg)
                 transform = `translate(${activeDrag.visualOffset * normX}px, ${activeDrag.visualOffset * normY}px)`;
               }
             }
@@ -246,3 +259,4 @@ export function GridDisplay({
     </div>
   );
 }
+
