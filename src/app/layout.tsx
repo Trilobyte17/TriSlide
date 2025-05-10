@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'TriPuzzle - A Game of Combining Tiles',
-  description: 'Engage in TriPuzzle, a captivating game where you combine tiles on a triangular grid to achieve high scores. Inspired by Trism, built with Next.js.',
+  title: 'TriSlide - A Game of Combining Tiles',
+  description: 'Engage in TriSlide, a captivating game where you combine tiles on a triangular grid to achieve high scores. Inspired by Trism, built with Next.js.',
 };
 
 export default function RootLayout({

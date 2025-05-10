@@ -7,14 +7,14 @@ import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { 
   initializeGrid, 
   addInitialTiles, 
-  slideRow, // Kept for game logic, UI interaction will change
+  slideRow, 
   findAndMarkMatches,
   removeMatchedTiles,
   applyGravityAndSpawn,
   checkGameOver,
-  swapTiles, // Kept for checkGameOver
-  getNeighbors, // Kept for checkGameOver
-  rotateTriad,  // Kept for checkGameOver
+  swapTiles, 
+  rotateTriad,  
+  getNeighbors, // Explicitly import if needed for page logic directly
 } from '@/lib/tripuzzle/engine';
 import { GridDisplay } from '@/components/tripuzzle/GridDisplay';
 import { GameControls } from '@/components/tripuzzle/GameControls';
@@ -22,9 +22,9 @@ import { GameOverDialog } from '@/components/tripuzzle/GameOverDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 
-const LOCAL_STORAGE_KEY = 'triPuzzleGameState_colorMatch_v6_noClickSelect';
+const LOCAL_STORAGE_KEY = 'triSlideGameState_v7_noClickSelect'; // Updated key for new app name
 
-export default function TriPuzzlePage() {
+export default function TriSlidePage() { // Renamed component for clarity
   const { toast } = useToast();
   const [gameState, setGameState] = useState<GameState>({
     grid: initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES),
@@ -35,9 +35,6 @@ export default function TriPuzzlePage() {
   });
   const [showRestorePrompt, setShowRestorePrompt] = useState(false);
   const [isProcessingMove, setIsProcessingMove] = useState(false);
-  // const [selectedTileCoords, setSelectedTileCoords] = useState<{ r: number; c: number } | null>(null); // Removed
-
-  // updateGridWithSelection is removed as isSelected is removed from Tile type
 
   const processMatchesAndGravity = useCallback(async (currentGrid: GridData, initialScore: number): Promise<GameState> => {
     setIsProcessingMove(true);
@@ -84,11 +81,10 @@ export default function TriPuzzlePage() {
     }
     setIsProcessingMove(false);
     return { ...gameState, grid: grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
-  }, [toast, gameState.isGameOver]); // Removed updateGridWithSelection from dependencies
+  }, [toast, gameState.isGameOver]);
 
   const createNewGame = useCallback(async () => {
     setIsProcessingMove(true);
-    // setSelectedTileCoords(null); // Removed
     const initialGridData = initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES);
     const gridWithInitialTiles = addInitialTiles(initialGridData); 
     
@@ -96,7 +92,6 @@ export default function TriPuzzlePage() {
     
     setGameState({
       ...finalInitialState,
-      grid: finalInitialState.grid, // Simplified
       isGameStarted: true,
       isLoading: false,
     });
@@ -104,7 +99,7 @@ export default function TriPuzzlePage() {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
     toast({ title: "New Game Started!", description: "Match 3+ colors. Drag functionality coming soon!" });
     setIsProcessingMove(false);
-  }, [processMatchesAndGravity, toast]); // Removed updateGridWithSelection
+  }, [processMatchesAndGravity, toast]);
   
   useEffect(() => {
     const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -114,7 +109,7 @@ export default function TriPuzzlePage() {
         if (savedState.grid && savedState.grid.length === GAME_SETTINGS.GRID_HEIGHT_TILES &&
             savedState.grid[0]?.length === GAME_SETTINGS.GRID_WIDTH_TILES &&
             savedState.isGameStarted && !savedState.isGameOver) {
-           setGameState({...savedState, grid: savedState.grid, isLoading: true}); // Simplified
+           setGameState({...savedState, isLoading: true});
            setShowRestorePrompt(true); 
         } else {
           localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -139,9 +134,9 @@ export default function TriPuzzlePage() {
          const savedState = JSON.parse(savedStateRaw) as GameState;
          if (savedState.grid && savedState.grid.length === GAME_SETTINGS.GRID_HEIGHT_TILES &&
              savedState.grid[0]?.length === GAME_SETTINGS.GRID_WIDTH_TILES) {
-            setGameState({...savedState, grid: savedState.grid, isLoading: false}); // Simplified
+            setGameState({...savedState, isLoading: false});
             processMatchesAndGravity(savedState.grid, savedState.score).then(newState => {
-              setGameState(ns => ({...ns, ...newState, grid: newState.grid})); // Simplified
+              setGameState(ns => ({...ns, ...newState}));
             });
             toast({ title: "Game Restored", description: "Welcome back!" });
          } else {
@@ -160,38 +155,30 @@ export default function TriPuzzlePage() {
   useEffect(() => {
     if (gameState.isGameStarted && !gameState.isLoading && !isProcessingMove && !gameState.isGameOver) {
       if (gameState.grid && gameState.grid.length > 0 && gameState.grid[0]?.length > 0) {
-        // isSelected property is removed from Tile, so no need to map and remove it
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
       }
     }
   }, [gameState, isProcessingMove]); 
 
 
-  // handleRowSlide is kept for game logic, but UI trigger (buttons) are removed from GridDisplay
-  // It might be adapted for drag-and-drop later.
   const handleRowSlide = useCallback(async (rowIndex: number, direction: 'left' | 'right') => {
     if (isProcessingMove || gameState.isGameOver) return;
     
     setIsProcessingMove(true);
-    // setSelectedTileCoords(null); // Removed
-    // Reset isNew/isMatched on tiles before slide
     const gridWithResets = gameState.grid.map(r_val => r_val.map(t => t ? {...t, isNew: false, isMatched: false } : null));
     setGameState(prev => ({ ...prev, grid: gridWithResets }));
 
-    const gridAfterSlide = slideRow(gridWithResets, rowIndex, direction); // Pass the grid with resets
+    const gridAfterSlide = slideRow(gridWithResets, rowIndex, direction); 
     setGameState(prev => ({ ...prev, grid: gridAfterSlide })); 
     await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION));
 
     const newState = await processMatchesAndGravity(gridAfterSlide, gameState.score);
     setGameState(ns => ({...ns, ...newState})); 
         
-  }, [gameState.grid, gameState.score, gameState.isGameOver, processMatchesAndGravity, isProcessingMove]); // Removed updateGridWithSelection
-
-  // handleTileClick function is completely removed as click-to-select is removed.
-  // The logic for swapTiles and rotateTriad was here. These actions are no longer user-triggerable via click.
+  }, [gameState.grid, gameState.score, gameState.isGameOver, processMatchesAndGravity, isProcessingMove]);
 
   if (gameState.isLoading && !showRestorePrompt) {
-    return <div className="flex items-center justify-center min-h-screen text-xl">Loading TriPuzzle...</div>;
+    return <div className="flex items-center justify-center min-h-screen text-xl">Loading TriSlide...</div>;
   }
 
   return (
@@ -236,10 +223,8 @@ export default function TriPuzzlePage() {
             />
             <GridDisplay
               gridData={gameState.grid}
-              // onRowSlide={handleRowSlide} // Row slide buttons are removed from GridDisplay, interaction will be drag
               isProcessingMove={isProcessingMove}
-              // onTileClick={handleTileClick} // Removed
-              // selectedTileCoords={selectedTileCoords} // Removed
+              onRowSlide={handleRowSlide} // Re-added for drag interaction logic
             />
             {isProcessingMove && !gameState.isGameOver && ( 
               <div className="fixed inset-0 flex items-center justify-center bg-background/10 z-40 backdrop-blur-sm">
@@ -252,7 +237,7 @@ export default function TriPuzzlePage() {
               onNewGame={createNewGame}
             />
             <footer className="mt-8 text-center text-sm text-muted-foreground">
-              <p>Drag rows to match 3+ colors. (Drag functionality coming soon!)</p>
+              <p>Drag rows to match 3+ colors.</p>
               <p>Inspired by Trism. Built with Next.js & ShadCN UI.</p>
             </footer>
           </>

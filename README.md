@@ -1,7 +1,7 @@
 
-# TriPuzzle Game
+# TriSlide Game
 
-This is a Next.js web application for "TriPuzzle", a tile-matching game inspired by Trism.
+This is a Next.js web application for "TriSlide", a tile-matching game inspired by Trism.
 
 ## Getting Started
 
@@ -31,12 +31,12 @@ The main game logic can be found in `src/app/page.tsx` and related files in `src
 
 ## Game Overview
 
-TriPuzzle is a game where players slide rows of tiles on a triangular grid to match three or more tiles of the same color. When a match is made, the tiles are removed, and new tiles fall into place. The goal is to achieve the highest score possible by creating matches. The game ends when no more valid slides can result in a match. Game state is saved to local storage, allowing users to resume where they left off.
+TriSlide is a game where players slide rows or diagonals of tiles on a triangular grid to match three or more tiles of the same color. When a match is made, the tiles are removed, and new tiles fall into place. The goal is to achieve the highest score possible by creating matches. The game ends when no more valid slides can result in a match. Game state is saved to local storage, allowing users to resume where they left off.
 
 ## Features
 
 - **Triangular Grid Display**: A visually distinct triangular grid for gameplay.
-- **Row Sliding Interaction**: Intuitive row manipulation for creating color matches.
+- **Row and Diagonal Sliding Interaction**: Intuitive tile manipulation for creating color matches.
 - **Color Matching**: Match 3 or more adjacent tiles of the same color.
 - **Score Tracking**: Dynamic scoring based on the number of tiles matched.
 - **Game Persistence**: Local storage of game state, allowing users to resume previous games.
@@ -44,3 +44,4 @@ TriPuzzle is a game where players slide rows of tiles on a triangular grid to ma
 - **Responsive Design**: Playable across various screen sizes.
 
 Built with Next.js, TypeScript, Tailwind CSS, and ShadCN UI components.
+

@@ -17,7 +17,7 @@ export function GameControls({ score, isGameStarted, onRestart, onNewGame }: Gam
   return (
     <div className="flex flex-col sm:flex-row justify-between items-center p-4 md:p-6 bg-card shadow-md rounded-lg w-full max-w-2xl mx-auto mb-4">
       <h1 className="text-3xl md:text-4xl font-bold text-primary order-2 sm:order-1 my-2 sm:my-0">
-        TriPuzzle
+        TriSlide
       </h1>
       <div className="flex items-center space-x-4 order-1 sm:order-2">
         <div className="text-center">
