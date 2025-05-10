@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -39,7 +38,7 @@ export function GridDisplay({
   const TILE_BASE_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const numGridCols = GAME_SETTINGS.GRID_WIDTH_TILES;
+  const numGridCols = GAME_SETTINGS.GRID_WIDTH_TILES; // Max tiles in any data row
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -51,22 +50,31 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-
-  const containerWidth = numGridCols * (TILE_BASE_WIDTH * 0.75) + (TILE_BASE_WIDTH * 0.25);
-  const containerHeight = numGridRows * TILE_HEIGHT + TILE_HEIGHT * 0.5; 
+  // Calculate container dimensions for a perfectly tessellated grid
+  // Width: (Max number of tiles in a row / 2 + 0.5) * Tile Base Width
+  // For N tiles, this is (N-1) * W/2 for positions, plus W for the last tile's extent. Total ( (N-1)/2 + 1 ) * W = (N+1)/2 * W
+  const containerWidth = ((numGridCols + 1) / 2) * TILE_BASE_WIDTH;
+  // Height: Number of rows * Tile Height
+  const containerHeight = numGridRows * TILE_HEIGHT; 
 
   const getTilePosition = (r: number, c: number, orientation: 'up' | 'down') => {
-    let finalX = c * (TILE_BASE_WIDTH * 0.75);
-    let finalY = r * TILE_HEIGHT;
-    if (c % 2 !== 0) { 
-        finalY += TILE_HEIGHT / 2;
+    let finalX = c * (TILE_BASE_WIDTH / 2);
+    if (r % 2 !== 0) { // Odd rows (1, 3, 5...) are shifted horizontally
+      finalX += TILE_BASE_WIDTH / 2;
     }
+    // finalY is the y-coordinate of the "top" of the bounding box for the triangle.
+    // For 'up' triangles, their tip is on this line (SVG points have tip at local y=0).
+    // For 'down' triangles, their base is on this line (SVG points have base at local y=0).
+    const finalY = r * TILE_HEIGHT;
     return { x: finalX, y: finalY };
   };
   
   const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
     if (isProcessingMoveRef.current || activeDrag) return;
     
+    // Check if the clicked tile actually exists
+    if (!gridDataRef.current[r]?.[c]) return;
+
     if (event.type === 'mousedown') event.preventDefault();
 
     const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
@@ -83,7 +91,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]);
+  }, [activeDrag]); // Removed gridDataRef from dependencies as it's a ref
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -107,7 +115,9 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              for(let colIdx = 0; colIdx < numGridCols; colIdx++) {
+              // For a 'row' drag, select all non-null tiles in that specific logical row 'prevDrag.startTileR'
+              // Their visual appearance forms a jagged line, but the drag affects the logical row.
+              for(let colIdx = 0; colIdx < numGridCols; colIdx++) { // Iterate up to the max columns in data
                 if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
                   rowPath.push({r: prevDrag.startTileR, c: colIdx});
                 }
@@ -127,12 +137,8 @@ export function GridDisplay({
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
           } else if (currentDragAxis === 'diff') { 
-            // Project delta onto diagonal vector for 'diff' (approx. 60 deg from positive x-axis)
-            // Vector for 'diff' is roughly (cos(60), sin(60)) = (0.5, sqrt(3)/2)
             currentVisualOffset = deltaX * 0.5 + deltaY * (Math.sqrt(3)/2);
           } else if (currentDragAxis === 'sum') { 
-            // Project delta onto diagonal vector for 'sum' (approx. 120 deg from positive x-axis, or -60 deg)
-            // Vector for 'sum' is roughly (cos(120), sin(120)) = (-0.5, sqrt(3)/2)
             currentVisualOffset = deltaX * (-0.5) + deltaY * (Math.sqrt(3)/2);
           }
         }
@@ -188,7 +194,7 @@ export function GridDisplay({
       document.removeEventListener('touchend', handleDragEnd);
       document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, TILE_BASE_WIDTH, numGridCols]);
+  }, [activeDrag, TILE_BASE_WIDTH, numGridCols]); // numGridCols is stable
 
   return (
     <div
@@ -215,18 +221,12 @@ export function GridDisplay({
               if (activeDrag.dragAxisLocked === 'row') {
                 transform = `translateX(${activeDrag.visualOffset}px)`;
               } else if (activeDrag.dragAxisLocked === 'diff') { 
-                // For 'diff' diagonal (like '\'), visual offset projects to this line's direction
-                // A simple approximation: transform along a line at roughly 60 degrees.
-                // Positive visualOffset should move tiles "down-rightish"
-                const normX = 0.5; // cos(60deg)
-                const normY = Math.sqrt(3)/2; // sin(60deg)
+                const normX = 0.5; 
+                const normY = Math.sqrt(3)/2; 
                 transform = `translate(${activeDrag.visualOffset * normX}px, ${activeDrag.visualOffset * normY}px)`;
               } else if (activeDrag.dragAxisLocked === 'sum') { 
-                // For 'sum' diagonal (like '/'), visual offset projects to this line's direction
-                // A simple approximation: transform along a line at roughly 120 degrees (or -60 from y-axis).
-                // Positive visualOffset should move tiles "down-leftish"
-                const normX = -0.5; // cos(120deg)
-                const normY = Math.sqrt(3)/2; // sin(120deg)
+                const normX = -0.5; 
+                const normY = Math.sqrt(3)/2; 
                 transform = `translate(${activeDrag.visualOffset * normX}px, ${activeDrag.visualOffset * normY}px)`;
               }
             }
@@ -259,4 +259,3 @@ export function GridDisplay({
     </div>
   );
 }
-
