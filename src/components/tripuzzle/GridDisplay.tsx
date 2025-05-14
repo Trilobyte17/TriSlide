@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -37,8 +38,9 @@ export function GridDisplay({
 }: GridDisplayProps) {
   const TILE_BASE_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
+  const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const numGridCols = GAME_SETTINGS.GRID_WIDTH_TILES; // Max tiles in any data row
+  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; // Max tiles in any data row (e.g., 6 for even rows)
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -50,23 +52,28 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  // Calculate container dimensions for a perfectly tessellated grid
-  // The number of tiles in a logical row is numGridCols.
-  // Max extent for even rows: (numGridCols+1)/2 * TILE_BASE_WIDTH.
-  // Max extent for odd rows (which are shifted by TILE_BASE_WIDTH/2): (numGridCols+2)/2 * TILE_BASE_WIDTH.
-  // Container must accommodate the wider odd rows.
-  const containerWidth = (numGridCols + 2) * TILE_BASE_WIDTH / 2;
-  // Height: Number of rows * Tile Height
-  const containerHeight = numGridRows * TILE_HEIGHT; 
+  // Calculate mathematical dimensions of the grid content (excluding outer half of border)
+  // Widest part of grid (e.g. 6 tiles, or 5 shifted tiles) takes 3.5 * TILE_BASE_WIDTH
+  const mathGridWidth = (maxTilesInRow + 1) * TILE_BASE_WIDTH / 2;
+  const mathGridHeight = numGridRows * TILE_HEIGHT;
 
-  const getTilePosition = (r: number, c: number, orientation: 'up' | 'down') => {
-    let finalX = c * (TILE_BASE_WIDTH / 2);
-    if (r % 2 !== 0) { // Odd rows (1, 3, 5...) are shifted horizontally
-      finalX += TILE_BASE_WIDTH / 2;
+  // Container dimensions need to include the full border width
+  const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
+  const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
+
+  const positionOffset = TILE_BORDER_WIDTH / 2;
+
+  const getTilePosition = (r: number, c: number) => {
+    let x = c * (TILE_BASE_WIDTH / 2);
+    if (r % 2 !== 0) { 
+      x += TILE_BASE_WIDTH / 2;
     }
-    // finalY is the y-coordinate of the "top" of the bounding box for the triangle.
-    const finalY = r * TILE_HEIGHT;
-    return { x: finalX, y: finalY };
+    const y = r * TILE_HEIGHT;
+    
+    return { 
+      x: x + positionOffset, 
+      y: y + positionOffset 
+    };
   };
   
   const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
@@ -90,7 +97,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]);
+  }, [activeDrag, positionOffset]); // Added positionOffset to dependencies as it's used in getTilePosition
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -114,7 +121,9 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              for(let colIdx = 0; colIdx < numGridCols; colIdx++) {
+              // Determine actual tiles in this specific row
+              const numTilesInCurrentRow = (prevDrag.startTileR % 2 === 0) ? maxTilesInRow : maxTilesInRow -1;
+              for(let colIdx = 0; colIdx < numTilesInCurrentRow; colIdx++) {
                 if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
                   rowPath.push({r: prevDrag.startTileR, c: colIdx});
                 }
@@ -134,9 +143,15 @@ export function GridDisplay({
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
           } else if (currentDragAxis === 'diff') { 
-            currentVisualOffset = deltaX * 0.5 + deltaY * (Math.sqrt(3)/2);
+            // Diagonal along r-c=k (like '\'). Positive drag is increasing r and c.
+            // Corresponds to positive deltaX and positive deltaY.
+            // Projection: (deltaX * cos(60)) + (deltaY * sin(60)) (if axis is at 60deg from X)
+            // Simplified for non-rotated system, movement along line:
+            currentVisualOffset = (deltaX + deltaY) / Math.sqrt(2); // Simple diagonal projection, might need refinement for isometric feel
           } else if (currentDragAxis === 'sum') { 
-            currentVisualOffset = deltaX * (-0.5) + deltaY * (Math.sqrt(3)/2);
+            // Diagonal along r+c=k (like '/'). Positive drag is increasing r and decreasing c.
+            // Corresponds to negative deltaX and positive deltaY.
+            currentVisualOffset = (-deltaX + deltaY) / Math.sqrt(2); // Simple diagonal projection
           }
         }
         
@@ -191,7 +206,7 @@ export function GridDisplay({
       document.removeEventListener('touchend', handleDragEnd);
       document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, TILE_BASE_WIDTH, numGridCols]);
+  }, [activeDrag, TILE_BASE_WIDTH, maxTilesInRow]);
 
   return (
     <div
@@ -199,8 +214,8 @@ export function GridDisplay({
       role="grid"
       aria-label="TriSlide game grid"
       style={{
-        width: `${containerWidth}px`,
-        height: `${containerHeight}px`,
+        width: `${styledContainerWidth}px`, // Use styled width
+        height: `${styledContainerHeight}px`, // Use styled height
         overflow: 'hidden', 
       }}
       ref={gridRef}
@@ -209,22 +224,28 @@ export function GridDisplay({
         row.map((tileData, cIndex) => {
           if (!tileData) return null;
           
-          const { x, y } = getTilePosition(rIndex, cIndex, tileData.orientation);
+          const { x, y } = getTilePosition(rIndex, cIndex); // Orientation not needed for position
           let transform = 'translate(0px, 0px)';
+          let zIndex = 1;
 
           if (activeDrag && activeDrag.draggedLineCoords) {
             const isTileInDraggedLine = activeDrag.draggedLineCoords.some(coord => coord.r === rIndex && coord.c === cIndex);
             if (isTileInDraggedLine) {
+              zIndex = 10; // Bring dragged tiles to front
               if (activeDrag.dragAxisLocked === 'row') {
                 transform = `translateX(${activeDrag.visualOffset}px)`;
               } else if (activeDrag.dragAxisLocked === 'diff') { 
-                const normX = 0.5; 
-                const normY = Math.sqrt(3)/2; 
-                transform = `translate(${activeDrag.visualOffset * normX}px, ${activeDrag.visualOffset * normY}px)`;
+                // Project visualOffset onto the 'diff' diagonal axis (approx. 60 deg for equilateral triangles)
+                const angleRad = -Math.PI / 3; // -60 degrees for diff line
+                const dx = activeDrag.visualOffset * Math.cos(angleRad);
+                const dy = activeDrag.visualOffset * Math.sin(angleRad);
+                transform = `translate(${dx}px, ${dy}px)`;
               } else if (activeDrag.dragAxisLocked === 'sum') { 
-                const normX = -0.5; 
-                const normY = Math.sqrt(3)/2; 
-                transform = `translate(${activeDrag.visualOffset * normX}px, ${activeDrag.visualOffset * normY}px)`;
+                 // Project visualOffset onto the 'sum' diagonal axis (approx. -60 deg or 120 deg)
+                const angleRad = Math.PI / 3; // 60 degrees for sum line (if y points down)
+                const dx = activeDrag.visualOffset * Math.cos(angleRad);
+                const dy = activeDrag.visualOffset * Math.sin(angleRad);
+                transform = `translate(${dx}px, ${dy}px)`;
               }
             }
           }
@@ -240,13 +261,13 @@ export function GridDisplay({
                 height: `${TILE_HEIGHT}px`,
                 transform: transform,
                 transition: activeDrag ? 'none' : `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out`,
-                zIndex: (activeDrag && activeDrag.draggedLineCoords?.some(c => c.r === rIndex && c.c === cIndex)) ? 10 : 1,
+                zIndex: zIndex,
                 cursor: activeDrag ? 'grabbing' : (isProcessingMove ? 'default' : 'grab'),
               }}
               onMouseDown={(e) => handleDragStart(e, rIndex, cIndex)}
               onTouchStart={(e) => handleDragStart(e, rIndex, cIndex)}
               role="gridcell"
-              aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} color ${tileData.color}`}
+              aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} with color ${tileData.color}`}
             >
               <Tile tile={tileData} />
             </div>
@@ -255,3 +276,4 @@ export function GridDisplay({
       )}
     </div>
   );
+}
