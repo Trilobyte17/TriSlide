@@ -40,7 +40,7 @@ export function GridDisplay({
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; // Max tiles in an even row (e.g., 6)
+  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; 
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -52,28 +52,20 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  // Calculate the mathematical width and height of the grid area
-  // For maxTilesInRow (e.g., 6), the width is (6 + 1) * TILE_BASE_WIDTH / 2 = 3.5 * TILE_BASE_WIDTH
   const mathGridWidth = (maxTilesInRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
-  // The container should be large enough to hold the tiles and their borders
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
   const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
 
-  // Offset for positioning tiles within the container to account for borders
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
   const getTilePosition = (r: number, c: number) => {
     let x = c * (TILE_BASE_WIDTH / 2);
-
-    // Shift odd rows for tessellation
-    if (r % 2 !== 0) { // Odd rows (1, 3, 5...) are shifted right
+    if (r % 2 !== 0) { 
       x += TILE_BASE_WIDTH / 2;
     }
-
-    const y = r * TILE_HEIGHT; // Vertical position for the row's top edge
-
+    const y = r * TILE_HEIGHT;
     return {
       x: x + positionOffset,
       y: y + positionOffset
@@ -82,9 +74,7 @@ export function GridDisplay({
 
   const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
     if (isProcessingMoveRef.current || activeDrag) return;
-
     if (!gridDataRef.current[r]?.[c]) return;
-
     if (event.type === 'mousedown') event.preventDefault();
 
     const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
@@ -121,22 +111,21 @@ export function GridDisplay({
           const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
           if (dragDistance > GAME_SETTINGS.DRAG_THRESHOLD) {
             const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              const numTilesInDraggedDataRow = gridDataRef.current[prevDrag.startTileR]?.filter(tile => tile !== null).length || 0;
-              for(let colIdx = 0; colIdx < numTilesInDraggedDataRow; colIdx++) {
-                if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
-                  rowPath.push({r: prevDrag.startTileR, c: colIdx});
-                }
+              const numTilesInRowData = gridDataRef.current[prevDrag.startTileR]?.filter(tile => tile !== null).length || 0;
+              for(let colIdx = 0; colIdx < numTilesInRowData; colIdx++) {
+                  if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
+                     rowPath.push({r: prevDrag.startTileR, c: colIdx});
+                  }
               }
               currentLineCoords = rowPath;
             } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) {
-              currentDragAxis = 'diff'; // '\' diagonal
+              currentDragAxis = 'diff'; 
               currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'diff');
             } else if ((angle >= 90 && angle <= 150) || (angle <= -30 && angle >= -90)) {
-              currentDragAxis = 'sum'; // '/' diagonal
+              currentDragAxis = 'sum'; 
               currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'sum');
             }
           }
@@ -146,10 +135,7 @@ export function GridDisplay({
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
           } else {
-            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); // Sum: 120deg, Diff: 60deg
-            // Project mouse movement (deltaX, deltaY) onto the diagonal's direction vector
-            // Direction vector for sum ('/'): cos(120), sin(120) = -0.5, sqrt(3)/2
-            // Direction vector for diff ('\'): cos(60), sin(60) = 0.5, sqrt(3)/2
+            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); 
             currentVisualOffset = deltaX * Math.cos(angleRad) + deltaY * Math.sin(angleRad);
           }
         }
@@ -166,8 +152,7 @@ export function GridDisplay({
     };
 
     const handleDragEnd = () => {
-      const currentActiveDragState = activeDrag; // Capture state before clearing
-
+      const currentActiveDragState = activeDrag; 
       setActiveDrag(null);
 
       if (!currentActiveDragState || !currentActiveDragState.dragAxisLocked || !currentActiveDragState.draggedLineCoords || currentActiveDragState.draggedLineCoords.length < 2) {
@@ -215,7 +200,7 @@ export function GridDisplay({
       style={{
         width: `${styledContainerWidth}px`,
         height: `${styledContainerHeight}px`,
-        overflow: 'hidden',
+        overflow: 'hidden', 
       }}
       ref={gridRef}
     >
@@ -233,13 +218,13 @@ export function GridDisplay({
               zIndex = 10;
               if (activeDrag.dragAxisLocked === 'row') {
                 transform = `translateX(${activeDrag.visualOffset}px)`;
-              } else if (activeDrag.dragAxisLocked === 'diff') { // '\'
-                const angleRad = Math.PI / 3; // 60 degrees
+              } else if (activeDrag.dragAxisLocked === 'diff') { 
+                const angleRad = Math.PI / 3; 
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;
-              } else if (activeDrag.dragAxisLocked === 'sum') { // '/'
-                const angleRad = 2 * Math.PI / 3; // 120 degrees
+              } else if (activeDrag.dragAxisLocked === 'sum') { 
+                const angleRad = 2 * Math.PI / 3; 
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;

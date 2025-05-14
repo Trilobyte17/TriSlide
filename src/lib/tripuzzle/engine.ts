@@ -31,13 +31,13 @@ export const initializeGrid = (rows: number, cols: number): GridData => {
 
 export const addInitialTiles = (grid: GridData): GridData => {
   const newGrid = grid.map(row => [...row]);
-  const { rows, cols: maxCols } = getGridDimensions(newGrid);
+  const { rows, cols: maxCols } = getGridDimensions(newGrid); // maxCols will be GRID_WIDTH_TILES
 
   for (let r = 0; r < rows; r++) {
     // Number of visual tiles in this row. Odd rows have one less.
     const tilesInThisRow = (r % 2 === 0) ? maxCols : maxCols - 1;
     for (let c = 0; c < maxCols; c++) { // Iterate up to maxCols for data array consistency
-      if (c < tilesInThisRow) {
+      if (c < tilesInThisRow) { // Only create a tile if it's within the visual boundary of this row
         newGrid[r][c] = {
           id: generateUniqueId(),
           color: getRandomColor(),
@@ -93,22 +93,26 @@ export const slideLine = (grid: GridData, lineCoords: {r: number, c: number}[], 
     const targetCoord = lineCoords[i];
     let sourceTileData: Tile | null;
 
-    if (slideDirection === 'forward') { // Tiles move "down" or "right" along the diagonal/row
-      if (i === 0) { // First tile in line gets a new random tile
+    if (slideDirection === 'forward') { 
+      const newTileIndex = (i - 1 + numTilesInLine) % numTilesInLine; // Wrap around for "infinite"
+      sourceTileData = originalTilesData[newTileIndex];
+      if (i === 0) { // The tile that "appears"
         sourceTileData = {
           id: generateUniqueId(),
           color: getRandomColor(),
-          row: targetCoord.r, // Temporary, will be updated
-          col: targetCoord.c, // Temporary, will be updated
-          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // Temp
+          row: targetCoord.r, 
+          col: targetCoord.c, 
+          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
           isNew: true,
         };
       } else {
-        sourceTileData = originalTilesData[i - 1];
+         sourceTileData = originalTilesData[i-1];
       }
-    } else { // backward - Tiles move "up" or "left"
-      if (i === numTilesInLine - 1) { // Last tile in line gets new random
-        sourceTileData = {
+    } else { // backward
+      const newTileIndex = (i + 1) % numTilesInLine; // Wrap around
+      sourceTileData = originalTilesData[newTileIndex];
+       if (i === numTilesInLine - 1) { // The tile that "appears"
+         sourceTileData = {
           id: generateUniqueId(),
           color: getRandomColor(),
           row: targetCoord.r,
@@ -116,20 +120,20 @@ export const slideLine = (grid: GridData, lineCoords: {r: number, c: number}[], 
           orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
           isNew: true,
         };
-      } else {
-        sourceTileData = originalTilesData[i + 1];
-      }
+       } else {
+         sourceTileData = originalTilesData[i+1];
+       }
     }
 
     if (sourceTileData) {
       newGrid[targetCoord.r][targetCoord.c] = {
         ...sourceTileData,
-        id: sourceTileData.id, // Preserve ID if it's an existing tile moving
+        id: sourceTileData.id, 
         color: sourceTileData.color,
         row: targetCoord.r,
         col: targetCoord.c,
         orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
-        isNew: sourceTileData.isNew ?? false, // Only new if explicitly set
+        isNew: sourceTileData.isNew ?? false, 
         isMatched: false,
       };
     } else {
@@ -155,8 +159,6 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
 
   if (rowCoords.length < 2) return grid;
 
-  // For horizontal rows: 'left' slide means tiles move to the left (forward in 0-indexed columns)
-  // 'right' slide means tiles move to the right (backward in 0-indexed columns)
   const slideDir: SlideDirection = direction === 'left' ? 'forward' : 'backward';
 
   return slideLine(grid, rowCoords, slideDir);
@@ -171,16 +173,13 @@ export const getNeighbors = (r: number, c: number, grid: GridData): {r: number, 
   if (!tile) return [];
 
   const deltasBase = [
-    // Potential neighbors based on shared edges in a tessellated grid
-    { dr: 0, dc: -1 }, // Left
-    { dr: 0, dc: 1 },  // Right
+    { dr: 0, dc: -1 }, 
+    { dr: 0, dc: 1 },  
   ];
 
   if (tile.orientation === 'up') {
-    // Up-pointing triangle also connects to the one "above" it (base of a down-pointing triangle)
     deltasBase.push({ dr: -1, dc: 0 });
-  } else { // 'down'
-    // Down-pointing triangle also connects to the one "below" it (tip of an up-pointing triangle)
+  } else { 
     deltasBase.push({ dr: 1, dc: 0 });
   }
 
@@ -188,10 +187,8 @@ export const getNeighbors = (r: number, c: number, grid: GridData): {r: number, 
     const nr = r + delta.dr;
     const nc = c + delta.dc;
 
-    // Check bounds
     if (nr >= 0 && nr < rows && nc >= 0 && nc < maxCols) {
       const neighborTile = grid[nr]?.[nc];
-      // A valid neighbor must exist, have the opposite orientation, and be within the actual tile area of its row
       const tilesInNeighborRow = (nr % 2 === 0) ? maxCols : maxCols - 1;
       if (neighborTile && nc < tilesInNeighborRow && neighborTile.orientation !== tile.orientation) {
         neighbors.push({ r: nr, c: nc });
@@ -258,11 +255,8 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
   let newGrid = grid.map(row => row.map(t => t ? {...t, isNew: false, isMatched: false } : null));
   const { rows: numRows, cols: maxCols } = getGridDimensions(newGrid);
 
-  // Tiles fall column by column (conceptual columns of the bounding box)
   for (let C = 0; C < maxCols; C++) {
     let emptySlotR = -1;
-
-    // Find the lowest empty slot in this conceptual column C
     for (let R = numRows - 1; R >= 0; R--) {
         const tilesInRowR = (R % 2 === 0) ? maxCols : maxCols - 1;
         if (C < tilesInRowR) {
@@ -286,8 +280,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
                     isNew: false,
                 };
                 newGrid[R_above][C] = null;
-
-                // Find next empty slot above the one just filled
                 let nextEmptyR = -1;
                 for(let rCheck = emptySlotR - 1; rCheck >= R_above; rCheck--) {
                     const tilesInRowRCheck = (rCheck % 2 === 0) ? maxCols : maxCols - 1;
@@ -299,7 +291,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
                 if (nextEmptyR !== -1) {
                     emptySlotR = nextEmptyR;
                 } else {
-                    // If no more empty slots directly above in this column segment, break to re-scan column
                     break;
                 }
             }
@@ -307,7 +298,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
     }
   }
 
-  // Spawn new tiles in any remaining empty spots from the top
   for (let r_spawn = 0; r_spawn < numRows; r_spawn++) {
     const tilesInThisRow = (r_spawn % 2 === 0) ? maxCols : maxCols - 1;
     for (let c_spawn = 0; c_spawn < tilesInThisRow; c_spawn++) {
@@ -332,10 +322,9 @@ export const checkGameOver = (grid: GridData): boolean => {
 
   if (findAndMarkMatches(grid).hasMatches) return false;
 
-  // Test horizontal slides
   for (let r_slide = 0; r_slide < numRows; r_slide++) {
     const tilesInThisDataRow = grid[r_slide].filter(tile => tile !== null).length;
-    if (tilesInThisDataRow > 1) { // Only slideable if more than 1 tile
+    if (tilesInThisDataRow > 1) { 
         const gridAfterLeftSlide = slideRow(JSON.parse(JSON.stringify(grid)), r_slide, 'left');
         if (findAndMarkMatches(gridAfterLeftSlide).hasMatches) return false;
 
@@ -344,7 +333,6 @@ export const checkGameOver = (grid: GridData): boolean => {
     }
   }
 
-  // Test diagonal slides
   const checkedDiagonals = new Set<string>();
   for (let r = 0; r < numRows; r++) {
     const tilesInThisRow = (r % 2 === 0) ? maxCols : maxCols - 1;
