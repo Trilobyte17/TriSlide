@@ -40,7 +40,7 @@ export function GridDisplay({
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; 
+  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; // This is 6 for Trism-like grid
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -52,7 +52,12 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  const mathGridWidth = ((maxTilesInRow -1) * 0.5 + 1) * TILE_BASE_WIDTH;
+  // Corrected calculation for the mathematical width of the grid content
+  // For N tiles in a row, the width is (N-1)*half_width + full_width = (N+1)*half_width
+  // Since maxTilesInRow defines the widest part of the grid (even rows),
+  // and odd rows (with maxTilesInRow-1 tiles) are shifted to align,
+  // the total width remains consistent at the widest point.
+  const mathGridWidth = (maxTilesInRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
@@ -121,8 +126,9 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              const numTilesInCurrentDataRow = (prevDrag.startTileR % 2 === 0) ? maxTilesInRow : maxTilesInRow -1;
-              for(let colIdx = 0; colIdx < numTilesInCurrentDataRow; colIdx++) {
+              // Determine number of actual tiles in the specific row being dragged
+              const numTilesInDraggedDataRow = (prevDrag.startTileR % 2 === 0) ? maxTilesInRow : maxTilesInRow - 1;
+              for(let colIdx = 0; colIdx < numTilesInDraggedDataRow; colIdx++) {
                 if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
                   rowPath.push({r: prevDrag.startTileR, c: colIdx});
                 }
