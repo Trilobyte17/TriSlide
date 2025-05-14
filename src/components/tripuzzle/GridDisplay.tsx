@@ -40,7 +40,7 @@ export function GridDisplay({
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; // Max tiles in any data row (e.g., 6 for even rows)
+  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; 
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -52,12 +52,6 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  // Calculate mathematical dimensions of the grid content (excluding outer half of border)
-  // For Trism layout, widest part is effectively (maxTilesInRow / 2 + 0.5) * TILE_BASE_WIDTH if maxTilesInRow is even
-  // or ((maxTilesInRow -1) / 2 + 1) * TILE_BASE_WIDTH if odd.
-  // Simpler: total width is ((maxTilesInRow -1) * 0.5 + 1) * TILE_BASE_WIDTH if rows are shifted.
-  // If row 0 has 6 tiles (0 to 5), x goes from 0 to 2.5 * W. Total span is 3.5 * W.
-  // ( (6-1) * 0.5 + 1 ) * W = (2.5 + 1) * W = 3.5 * W
   const mathGridWidth = ((maxTilesInRow -1) * 0.5 + 1) * TILE_BASE_WIDTH;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
@@ -67,7 +61,6 @@ export function GridDisplay({
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
   const getTilePosition = (r: number, c: number) => {
-    // Calculate base x position: each tile is offset by half its base width from the previous
     let x = c * (TILE_BASE_WIDTH / 2);
 
     // Odd rows (1, 3, 5...) are shifted to the right by half a tile width to interlock
@@ -75,10 +68,10 @@ export function GridDisplay({
       x += TILE_BASE_WIDTH / 2;
     }
 
-    const y = r * TILE_HEIGHT; // y position is simply row index times tile height
+    const y = r * TILE_HEIGHT;
     
     return { 
-      x: x + positionOffset, // Apply global offset for border handling
+      x: x + positionOffset,
       y: y + positionOffset 
     };
   };
@@ -104,7 +97,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]); // Removed positionOffset as getTilePosition is stable if its inputs are stable
+  }, [activeDrag]); 
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -136,10 +129,10 @@ export function GridDisplay({
               }
               currentLineCoords = rowPath;
             } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { 
-              currentDragAxis = 'diff'; // Corresponds to "backward" diagonal in Trism (top-left to bottom-right-ish)
+              currentDragAxis = 'diff'; 
               currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'diff');
             } else if ((angle >= 90 && angle <= 150) || (angle <= -30 && angle >= -90)) { 
-              currentDragAxis = 'sum'; // Corresponds to "forward" diagonal in Trism (top-right to bottom-left-ish)
+              currentDragAxis = 'sum'; 
               currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'sum');
             }
           }
@@ -148,12 +141,8 @@ export function GridDisplay({
         if (currentDragAxis && currentLineCoords) {
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
-          } else { // For diagonals 'sum' or 'diff'
-             // Project movement onto the approximate angle of the diagonal.
-             // 'sum' diagonals (r+c=k) run roughly from top-right to bottom-left (-45 to -75 deg from X-axis in screen space, or 135 to 105 deg).
-             // 'diff' diagonals (r-c=k) run roughly from top-left to bottom-right (45 to 75 deg from X-axis in screen space).
-             // The exact visual angle is closer to +/- 60 degrees for equilateral triangles.
-            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); // Approx 120 deg for sum, 60 deg for diff
+          } else { 
+            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); 
             currentVisualOffset = deltaX * Math.cos(angleRad) + deltaY * Math.sin(angleRad);
           }
         }
@@ -237,13 +226,13 @@ export function GridDisplay({
               zIndex = 10; 
               if (activeDrag.dragAxisLocked === 'row') {
                 transform = `translateX(${activeDrag.visualOffset}px)`;
-              } else if (activeDrag.dragAxisLocked === 'diff') { // Moves along TL-BR axis
-                const angleRad = Math.PI / 3; // approx 60 deg
+              } else if (activeDrag.dragAxisLocked === 'diff') { 
+                const angleRad = Math.PI / 3; 
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;
-              } else if (activeDrag.dragAxisLocked === 'sum') { // Moves along TR-BL axis
-                const angleRad = 2 * Math.PI / 3; // approx 120 deg
+              } else if (activeDrag.dragAxisLocked === 'sum') { 
+                const angleRad = 2 * Math.PI / 3; 
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;
@@ -278,3 +267,4 @@ export function GridDisplay({
     </div>
   );
 }
+
