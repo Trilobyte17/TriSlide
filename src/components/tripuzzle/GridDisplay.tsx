@@ -52,26 +52,31 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
+  // Calculate the mathematical width and height of the grid area
+  // For maxTilesInRow (e.g., 6), the width is (6 + 1) * TILE_BASE_WIDTH / 2 = 3.5 * TILE_BASE_WIDTH
   const mathGridWidth = (maxTilesInRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
+  // The container should be large enough to hold the tiles and their borders
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
   const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
 
+  // Offset for positioning tiles within the container to account for borders
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
   const getTilePosition = (r: number, c: number) => {
     let x = c * (TILE_BASE_WIDTH / 2);
 
+    // Shift odd rows for tessellation
     if (r % 2 !== 0) {
       x += TILE_BASE_WIDTH / 2;
     }
 
-    const y = r * TILE_HEIGHT;
+    const y = r * TILE_HEIGHT; // Vertical position for the row's top edge
     
     return { 
-      x: x + positionOffset,
-      y: y + positionOffset 
+      x: x + positionOffset, // Add offset for border handling
+      y: y + positionOffset  // Add offset for border handling
     };
   };
   
@@ -96,7 +101,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]); 
+  }, [activeDrag]); // activeDrag dependency is correct here
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -120,8 +125,10 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              const numTilesInDraggedDataRow = (prevDrag.startTileR % 2 === 0) ? maxTilesInRow : maxTilesInRow - 1;
+              // Determine actual number of tiles in the specific row being dragged
+              const numTilesInDraggedDataRow = gridDataRef.current[prevDrag.startTileR]?.filter(tile => tile !== null).length || 0;
               for(let colIdx = 0; colIdx < numTilesInDraggedDataRow; colIdx++) {
+                 // We only care about actual tiles, not null placeholders in the data structure
                 if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
                   rowPath.push({r: prevDrag.startTileR, c: colIdx});
                 }
@@ -141,7 +148,11 @@ export function GridDisplay({
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
           } else { 
-            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); 
+            // Project mouse movement onto the diagonal's approximate angle
+            // Sum diagonal (approx 120 deg or -60 deg from positive X) - use 60 deg for projection simplicity from Y
+            // Diff diagonal (approx 60 deg or -120 deg from positive X) - use 30 deg for projection simplicity from X
+            // Simplified: use a weighted average or dominant axis for now
+            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); // Sum: 120deg, Diff: 60deg
             currentVisualOffset = deltaX * Math.cos(angleRad) + deltaY * Math.sin(angleRad);
           }
         }
@@ -158,16 +169,16 @@ export function GridDisplay({
     };
 
     const handleDragEnd = () => {
-      const currentActiveDragState = activeDrag; 
+      const currentActiveDragState = activeDrag; // Capture state before clearing
       
-      setActiveDrag(null); 
+      setActiveDrag(null); // Clear activeDrag immediately to allow new drags and stop visual updates
 
       if (!currentActiveDragState || !currentActiveDragState.dragAxisLocked || !currentActiveDragState.draggedLineCoords || currentActiveDragState.draggedLineCoords.length < 2) {
-        return; 
+        return; // No valid drag to process
       }
 
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = currentActiveDragState;
-      const slideThreshold = TILE_BASE_WIDTH * 0.4; 
+      const slideThreshold = TILE_BASE_WIDTH * 0.40; // 40% of tile width to commit slide
       
       if (Math.abs(visualOffset) > slideThreshold) {
         const direction = visualOffset > 0 ? 
@@ -185,9 +196,9 @@ export function GridDisplay({
     if (activeDrag) {
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
-      document.addEventListener('touchmove', handleDragMove, { passive: false }); 
+      document.addEventListener('touchmove', handleDragMove, { passive: false }); // passive: false to allow preventDefault if needed
       document.addEventListener('touchend', handleDragEnd);
-      document.addEventListener('touchcancel', handleDragEnd);
+      document.addEventListener('touchcancel', handleDragEnd); // Handle unexpected cancel
     }
 
     return () => {
@@ -197,7 +208,7 @@ export function GridDisplay({
       document.removeEventListener('touchend', handleDragEnd);
       document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, TILE_BASE_WIDTH, maxTilesInRow]);
+  }, [activeDrag, TILE_BASE_WIDTH, maxTilesInRow]); // Dependencies for drag setup/cleanup
 
   return (
     <div
@@ -207,31 +218,33 @@ export function GridDisplay({
       style={{
         width: `${styledContainerWidth}px`, 
         height: `${styledContainerHeight}px`, 
-        overflow: 'hidden', 
+        overflow: 'hidden', // Important: clips tiles that slide "off-screen"
       }}
       ref={gridRef}
     >
       {gridData.map((row, rIndex) => 
         row.map((tileData, cIndex) => {
-          if (!tileData) return null;
+          if (!tileData) return null; // Don't render null tiles (empty spaces in jagged array)
           
           const { x, y } = getTilePosition(rIndex, cIndex);
           let transform = 'translate(0px, 0px)';
-          let zIndex = 1;
+          let zIndex = 1; // Default z-index
 
           if (activeDrag && activeDrag.draggedLineCoords) {
             const isTileInDraggedLine = activeDrag.draggedLineCoords.some(coord => coord.r === rIndex && coord.c === cIndex);
             if (isTileInDraggedLine) {
-              zIndex = 10; 
+              zIndex = 10; // Dragged tiles on top
               if (activeDrag.dragAxisLocked === 'row') {
                 transform = `translateX(${activeDrag.visualOffset}px)`;
-              } else if (activeDrag.dragAxisLocked === 'diff') { 
-                const angleRad = Math.PI / 3; 
+              } else if (activeDrag.dragAxisLocked === 'diff') { // Diagonal like '\'
+                //Tiles on a 'diff' diagonal (r-c = k) move along approx 60deg / 240deg
+                const angleRad = Math.PI / 3; // 60 degrees
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;
-              } else if (activeDrag.dragAxisLocked === 'sum') { 
-                const angleRad = 2 * Math.PI / 3; 
+              } else if (activeDrag.dragAxisLocked === 'sum') { // Diagonal like '/'
+                //Tiles on a 'sum' diagonal (r+c = k) move along approx 120deg / 300deg
+                const angleRad = 2 * Math.PI / 3; // 120 degrees
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;
@@ -246,9 +259,10 @@ export function GridDisplay({
                 position: 'absolute',
                 left: `${x}px`,
                 top: `${y}px`,
-                width: `${TILE_BASE_WIDTH}px`,
-                height: `${TILE_HEIGHT}px`,
+                width: `${TILE_BASE_WIDTH}px`, // SVG container width
+                height: `${TILE_HEIGHT}px`,    // SVG container height
                 transform: transform,
+                // Transition only when not actively dragging for smooth snap back or slide animation
                 transition: activeDrag ? 'none' : `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out`,
                 zIndex: zIndex,
                 cursor: activeDrag ? 'grabbing' : (isProcessingMove ? 'default' : 'grab'),
