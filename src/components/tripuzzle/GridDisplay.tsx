@@ -53,25 +53,32 @@ export function GridDisplay({
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
   // Calculate mathematical dimensions of the grid content (excluding outer half of border)
-  // Widest part of grid (e.g. 6 tiles, or 5 shifted tiles) takes 3.5 * TILE_BASE_WIDTH
-  const mathGridWidth = (maxTilesInRow + 1) * TILE_BASE_WIDTH / 2;
+  // For Trism layout, widest part is effectively (maxTilesInRow / 2 + 0.5) * TILE_BASE_WIDTH if maxTilesInRow is even
+  // or ((maxTilesInRow -1) / 2 + 1) * TILE_BASE_WIDTH if odd.
+  // Simpler: total width is ((maxTilesInRow -1) * 0.5 + 1) * TILE_BASE_WIDTH if rows are shifted.
+  // If row 0 has 6 tiles (0 to 5), x goes from 0 to 2.5 * W. Total span is 3.5 * W.
+  // ( (6-1) * 0.5 + 1 ) * W = (2.5 + 1) * W = 3.5 * W
+  const mathGridWidth = ((maxTilesInRow -1) * 0.5 + 1) * TILE_BASE_WIDTH;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
-  // Container dimensions need to include the full border width
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
   const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
 
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
   const getTilePosition = (r: number, c: number) => {
+    // Calculate base x position: each tile is offset by half its base width from the previous
     let x = c * (TILE_BASE_WIDTH / 2);
-    if (r % 2 !== 0) { 
+
+    // Odd rows (1, 3, 5...) are shifted to the right by half a tile width to interlock
+    if (r % 2 !== 0) {
       x += TILE_BASE_WIDTH / 2;
     }
-    const y = r * TILE_HEIGHT;
+
+    const y = r * TILE_HEIGHT; // y position is simply row index times tile height
     
     return { 
-      x: x + positionOffset, 
+      x: x + positionOffset, // Apply global offset for border handling
       y: y + positionOffset 
     };
   };
@@ -97,7 +104,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag, positionOffset]); // Added positionOffset to dependencies as it's used in getTilePosition
+  }, [activeDrag]); // Removed positionOffset as getTilePosition is stable if its inputs are stable
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -121,19 +128,18 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              // Determine actual tiles in this specific row
-              const numTilesInCurrentRow = (prevDrag.startTileR % 2 === 0) ? maxTilesInRow : maxTilesInRow -1;
-              for(let colIdx = 0; colIdx < numTilesInCurrentRow; colIdx++) {
+              const numTilesInCurrentDataRow = (prevDrag.startTileR % 2 === 0) ? maxTilesInRow : maxTilesInRow -1;
+              for(let colIdx = 0; colIdx < numTilesInCurrentDataRow; colIdx++) {
                 if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
                   rowPath.push({r: prevDrag.startTileR, c: colIdx});
                 }
               }
               currentLineCoords = rowPath;
             } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { 
-              currentDragAxis = 'diff'; 
+              currentDragAxis = 'diff'; // Corresponds to "backward" diagonal in Trism (top-left to bottom-right-ish)
               currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'diff');
             } else if ((angle >= 90 && angle <= 150) || (angle <= -30 && angle >= -90)) { 
-              currentDragAxis = 'sum'; 
+              currentDragAxis = 'sum'; // Corresponds to "forward" diagonal in Trism (top-right to bottom-left-ish)
               currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'sum');
             }
           }
@@ -142,16 +148,13 @@ export function GridDisplay({
         if (currentDragAxis && currentLineCoords) {
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
-          } else if (currentDragAxis === 'diff') { 
-            // Diagonal along r-c=k (like '\'). Positive drag is increasing r and c.
-            // Corresponds to positive deltaX and positive deltaY.
-            // Projection: (deltaX * cos(60)) + (deltaY * sin(60)) (if axis is at 60deg from X)
-            // Simplified for non-rotated system, movement along line:
-            currentVisualOffset = (deltaX + deltaY) / Math.sqrt(2); // Simple diagonal projection, might need refinement for isometric feel
-          } else if (currentDragAxis === 'sum') { 
-            // Diagonal along r+c=k (like '/'). Positive drag is increasing r and decreasing c.
-            // Corresponds to negative deltaX and positive deltaY.
-            currentVisualOffset = (-deltaX + deltaY) / Math.sqrt(2); // Simple diagonal projection
+          } else { // For diagonals 'sum' or 'diff'
+             // Project movement onto the approximate angle of the diagonal.
+             // 'sum' diagonals (r+c=k) run roughly from top-right to bottom-left (-45 to -75 deg from X-axis in screen space, or 135 to 105 deg).
+             // 'diff' diagonals (r-c=k) run roughly from top-left to bottom-right (45 to 75 deg from X-axis in screen space).
+             // The exact visual angle is closer to +/- 60 degrees for equilateral triangles.
+            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); // Approx 120 deg for sum, 60 deg for diff
+            currentVisualOffset = deltaX * Math.cos(angleRad) + deltaY * Math.sin(angleRad);
           }
         }
         
@@ -214,8 +217,8 @@ export function GridDisplay({
       role="grid"
       aria-label="TriSlide game grid"
       style={{
-        width: `${styledContainerWidth}px`, // Use styled width
-        height: `${styledContainerHeight}px`, // Use styled height
+        width: `${styledContainerWidth}px`, 
+        height: `${styledContainerHeight}px`, 
         overflow: 'hidden', 
       }}
       ref={gridRef}
@@ -224,25 +227,23 @@ export function GridDisplay({
         row.map((tileData, cIndex) => {
           if (!tileData) return null;
           
-          const { x, y } = getTilePosition(rIndex, cIndex); // Orientation not needed for position
+          const { x, y } = getTilePosition(rIndex, cIndex);
           let transform = 'translate(0px, 0px)';
           let zIndex = 1;
 
           if (activeDrag && activeDrag.draggedLineCoords) {
             const isTileInDraggedLine = activeDrag.draggedLineCoords.some(coord => coord.r === rIndex && coord.c === cIndex);
             if (isTileInDraggedLine) {
-              zIndex = 10; // Bring dragged tiles to front
+              zIndex = 10; 
               if (activeDrag.dragAxisLocked === 'row') {
                 transform = `translateX(${activeDrag.visualOffset}px)`;
-              } else if (activeDrag.dragAxisLocked === 'diff') { 
-                // Project visualOffset onto the 'diff' diagonal axis (approx. 60 deg for equilateral triangles)
-                const angleRad = -Math.PI / 3; // -60 degrees for diff line
+              } else if (activeDrag.dragAxisLocked === 'diff') { // Moves along TL-BR axis
+                const angleRad = Math.PI / 3; // approx 60 deg
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;
-              } else if (activeDrag.dragAxisLocked === 'sum') { 
-                 // Project visualOffset onto the 'sum' diagonal axis (approx. -60 deg or 120 deg)
-                const angleRad = Math.PI / 3; // 60 degrees for sum line (if y points down)
+              } else if (activeDrag.dragAxisLocked === 'sum') { // Moves along TR-BL axis
+                const angleRad = 2 * Math.PI / 3; // approx 120 deg
                 const dx = activeDrag.visualOffset * Math.cos(angleRad);
                 const dy = activeDrag.visualOffset * Math.sin(angleRad);
                 transform = `translate(${dx}px, ${dy}px)`;
