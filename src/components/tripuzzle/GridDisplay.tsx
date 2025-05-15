@@ -41,8 +41,7 @@ export function GridDisplay({
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
 
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  // VISUAL_TILES_PER_ROW is the max for even rows. Odd rows have one less.
-  const maxVisualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
+  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; // All rows have same visual width
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -54,10 +53,8 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  // Calculate the width of the grid considering the widest row (even rows with maxVisualTilesPerRow)
-  // and the half-tile shift for odd rows.
-  // For N tiles in a row, the width is (N+1)/2 * TILE_BASE_WIDTH
-  const mathGridWidth = (maxVisualTilesPerRow + 1) * TILE_BASE_WIDTH / 2;
+  // For N tiles in a row (no horizontal staggering), width is (N+1)/2 * TILE_BASE_WIDTH
+  const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
@@ -65,10 +62,8 @@ export function GridDisplay({
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
   const getTilePosition = (r: number, c: number) => {
-    let x = c * (TILE_BASE_WIDTH / 2);
-    if (r % 2 !== 0) { // Odd rows are shifted by half a tile width
-      x += TILE_BASE_WIDTH / 2;
-    }
+    // No horizontal shift for odd rows
+    const x = c * (TILE_BASE_WIDTH / 2);
     const y = r * TILE_HEIGHT;
     return {
       x: x + positionOffset,
@@ -96,7 +91,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]);
+  }, [activeDrag]); // Removed TILE_BASE_WIDTH dependency as it's from GAME_SETTINGS
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -119,11 +114,8 @@ export function GridDisplay({
 
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
               currentDragAxis = 'row';
-              const numVisualTilesThisRow = (prevDrag.startTileR % 2 === 0)
-                  ? maxVisualTilesPerRow
-                  : maxVisualTilesPerRow - 1;
               const rowPath: {r:number, c:number}[] = [];
-              for(let colIdx = 0; colIdx < numVisualTilesThisRow; colIdx++) {
+              for(let colIdx = 0; colIdx < visualTilesPerRow; colIdx++) { // Use consistent visualTilesPerRow
                  rowPath.push({r: prevDrag.startTileR, c: colIdx});
               }
               currentLineCoords = rowPath;
@@ -168,7 +160,7 @@ export function GridDisplay({
     
       if (activeDrag && activeDrag.dragAxisLocked && activeDrag.draggedLineCoords && activeDrag.draggedLineCoords.length >= 1) {
         const { dragAxisLocked, startTileR, startTileC, visualOffset } = activeDrag;
-        const slideThreshold = TILE_BASE_WIDTH * 0.40;
+        const slideThreshold = TILE_BASE_WIDTH * 0.40; // Use TILE_BASE_WIDTH from GAME_SETTINGS
     
         if (Math.abs(visualOffset) > slideThreshold) {
           const direction = visualOffset > 0 ?
@@ -183,12 +175,11 @@ export function GridDisplay({
         }
       }
       
-      // Store activeDrag before setting it to null
-      const previousActiveDrag = activeDrag;
-      setActiveDrag(null); // Update child state first
+      const previousActiveDrag = activeDrag; // Store for potential use
+      setActiveDrag(null); 
     
       if (slideInfo) {
-        // Use the captured slideInfo to call the parent's update function
+        // Defer parent state update
         setTimeout(() => {
           onSlideCommitRef.current(slideInfo!.lineType, slideInfo!.identifier, slideInfo!.direction);
         }, 0);
@@ -211,7 +202,7 @@ export function GridDisplay({
       document.removeEventListener('touchend', handleDragEnd);
       document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, maxVisualTilesPerRow]);
+  }, [activeDrag, visualTilesPerRow, TILE_BASE_WIDTH]); // Added TILE_BASE_WIDTH
 
   return (
     <div
@@ -221,17 +212,14 @@ export function GridDisplay({
       style={{
         width: `${styledContainerWidth}px`,
         height: `${styledContainerHeight}px`,
-        overflow: 'hidden',
+        overflow: 'hidden', // Keep overflow hidden to clip tiles during slide
       }}
       ref={gridRef}
     >
       {gridData.map((row, rIndex) => {
-        const numVisualTilesInThisRow = (rIndex % 2 === 0)
-            ? maxVisualTilesPerRow
-            : maxVisualTilesPerRow - 1;
-
-        return row.map((tileData, cIndex) => {
-           if (cIndex >= numVisualTilesInThisRow || !tileData) return null;
+        // All rows have visualTilesPerRow
+        return row.slice(0, visualTilesPerRow).map((tileData, cIndex) => { // Only map up to visualTilesPerRow
+           if (!tileData) return null;
 
           const { x, y } = getTilePosition(rIndex, cIndex);
           let transform = 'translate(0px, 0px)';
@@ -284,3 +272,4 @@ export function GridDisplay({
     </div>
   );
 }
+
