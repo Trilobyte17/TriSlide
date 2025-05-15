@@ -57,18 +57,20 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
   const lineCoords: {r: number, c: number}[] = [];
   const key = type === 'sum' ? startR + startC : startR - startC;
 
-  // Collect ALL cell coordinates on the mathematical diagonal within visual bounds
+  // Collect ONLY non-null tile coordinates on the mathematical diagonal within visual bounds
   for (let r_iter = 0; r_iter < rows; r_iter++) {
     for (let c_iter = 0; c_iter < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_iter++) {
-      if (type === 'sum' && r_iter + c_iter === key) {
-        lineCoords.push({ r: r_iter, c: c_iter });
-      } else if (type === 'diff' && r_iter - c_iter === key) {
-        lineCoords.push({ r: r_iter, c: c_iter });
+      if (grid[r_iter]?.[c_iter]) { // Only consider non-null tiles
+        if (type === 'sum' && r_iter + c_iter === key) {
+          lineCoords.push({ r: r_iter, c: c_iter });
+        } else if (type === 'diff' && r_iter - c_iter === key) {
+          lineCoords.push({ r: r_iter, c: c_iter });
+        }
       }
     }
   }
 
-  lineCoords.sort((a, b) => {
+  lineCoords.sort((a, b) => { // Sort to ensure consistent line order for sliding
     if (a.r !== b.r) return a.r - b.r;
     return a.c - b.c;
   });
@@ -136,9 +138,11 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
   if (rowIndex < 0 || rowIndex >= grid.length) return grid;
 
   const rowCoords: {r: number, c: number}[] = [];
-  // Collect ALL cell coordinates for the row within visual bounds
+  // Collect ALL non-null cell coordinates for the row within visual bounds
   for (let c_slide = 0; c_slide < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_slide++) {
-    rowCoords.push({ r: rowIndex, c: c_slide });
+    if (grid[rowIndex]?.[c_slide]) { // Only include non-null tiles
+        rowCoords.push({ r: rowIndex, c: c_slide });
+    }
   }
 
   if (rowCoords.length === 0) return grid;
@@ -156,8 +160,6 @@ export const getNeighbors = (r: number, c: number, grid: GridData): {r: number, 
   const currentOrientation = tile.orientation; 
 
   // Horizontal neighbors (always possible if within bounds)
-  // Tile (r,c) and (r,c-1) are neighbors if their orientations differ
-  // Tile (r,c) and (r,c+1) are neighbors if their orientations differ
   if (c > 0) {
     const leftNeighbor = grid[r]?.[c-1];
     if (leftNeighbor && leftNeighbor.orientation !== currentOrientation) {
@@ -171,16 +173,13 @@ export const getNeighbors = (r: number, c: number, grid: GridData): {r: number, 
     }
   }
   
-  // Vertical/diagonal neighbor (the one the tip points to, or base connects to)
-  // This depends on the orientation of the current tile (r,c)
   let nr: number, nc: number;
-  if (currentOrientation === 'up') { // Up-pointing triangle points downwards to a down-pointing one
-    nr = r + 1; // Row below
-    nc = c;     // Same column index for the down-pointing tile it connects to
-                // (because odd rows are shifted, an up[r,c] connects to down[r+1,c])
-  } else { // Down-pointing triangle points upwards to an up-pointing one
-    nr = r - 1; // Row above
-    nc = c;     // Same column index for the up-pointing tile it connects to
+  if (currentOrientation === 'up') { 
+    nr = r + 1; 
+    nc = c;     
+  } else { 
+    nr = r - 1; 
+    nc = c;     
   }
 
   if (nr >= 0 && nr < rows && nc >= 0 && nc < GAME_SETTINGS.VISUAL_TILES_PER_ROW) {
@@ -190,7 +189,7 @@ export const getNeighbors = (r: number, c: number, grid: GridData): {r: number, 
     }
   }
   
-  return neighbors.filter(n => grid[n.r]?.[n.c]); // Ensure tile exists at neighbor coord
+  return neighbors.filter(n => grid[n.r]?.[n.c]); 
 };
 
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
@@ -255,7 +254,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
   for (let c_grav = 0; c_grav < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_grav++) {
     let emptySlotR = -1; 
 
-    // Find the lowest empty slot in the current column
     for (let r_grav = numRows - 1; r_grav >= 0; r_grav--) {
       if (newGrid[r_grav][c_grav] === null) {
         emptySlotR = r_grav;
@@ -263,7 +261,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
       }
     }
 
-    // If an empty slot is found, pull tiles down from above
     if (emptySlotR !== -1) {
       for (let r_grav_fill = emptySlotR - 1; r_grav_fill >= 0; r_grav_fill--) { 
         if (newGrid[r_grav_fill][c_grav] !== null) { 
@@ -277,14 +274,13 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
             isNew: false, 
           };
           newGrid[r_grav_fill][c_grav] = null; 
-          emptySlotR--; // Move to the next empty slot above
+          emptySlotR--; 
           if (emptySlotR < 0) break; 
         }
       }
     }
   }
 
-  // Spawn new tiles in any remaining empty slots at the top
   for (let r_spawn = 0; r_spawn < numRows; r_spawn++) {
     for (let c_spawn = 0; c_spawn < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_spawn++) {
       if (newGrid[r_spawn][c_spawn] === null) {
@@ -307,10 +303,8 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
 export const checkGameOver = (grid: GridData): boolean => {
   const { rows: numRows } = getGridDimensions(grid);
 
-  // Check if any matches currently exist (shouldn't if called after processing)
   if (findAndMarkMatches(grid).hasMatches) return false;
 
-  // Try sliding each row left and right
   for (let r_slide = 0; r_slide < numRows; r_slide++) {
     const tempGridLeft = JSON.parse(JSON.stringify(grid));
     const gridAfterLeftSlide = slideRow(tempGridLeft, r_slide, 'left');
@@ -321,7 +315,6 @@ export const checkGameOver = (grid: GridData): boolean => {
     if (findAndMarkMatches(gridAfterRightSlide).hasMatches) return false;
   }
 
-  // Try sliding each unique mathematical diagonal forward and backward
   const checkedDiagonals = new Set<string>(); 
   for (let r_diag = 0; r_diag < numRows; r_diag++) {
     for (let c_diag = 0; c_diag < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_diag++) {
@@ -332,7 +325,7 @@ export const checkGameOver = (grid: GridData): boolean => {
         if (checkedDiagonals.has(diagonalKey)) continue; 
 
         const lineCoords = getTilesOnDiagonal(grid, r_diag, c_diag, type);
-        if (lineCoords.length > 0) { // Only consider non-empty diagonals
+        if (lineCoords.length > 0) { 
           checkedDiagonals.add(diagonalKey); 
 
           const tempGridForward = JSON.parse(JSON.stringify(grid));
@@ -346,6 +339,5 @@ export const checkGameOver = (grid: GridData): boolean => {
       }
     }
   }
-  return true; // No possible moves lead to a match
+  return true; 
 };
-

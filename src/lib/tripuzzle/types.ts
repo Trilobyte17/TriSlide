@@ -34,8 +34,8 @@ const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
   GRID_WIDTH_TILES: 11, // Max columns in the data array, matching visual tiles per row
-  GRID_HEIGHT_TILES: 12, // Updated from 11 to 12
-  VISUAL_TILES_PER_ROW: 11, // Updated from 9 to 11
+  GRID_HEIGHT_TILES: 12, // As per user request
+  VISUAL_TILES_PER_ROW: 11, // As per user request
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const, 
   SCORE_PER_MATCHED_TILE: 10,
@@ -64,4 +64,3 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
 };
-
