@@ -4,10 +4,11 @@ import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } fro
 import { GAME_SETTINGS, getRandomColor } from './types';
 
 const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  if (r % 2 === 0) { // Even rows
-    return c % 2 === 0 ? 'up' : 'down';
-  } else { // Odd rows - flipped pattern
-    return c % 2 === 0 ? 'down' : 'up';
+  // For a grid with no horizontal staggering of rows, but alternating orientation patterns:
+  if (r % 2 === 0) { // Even rows (0, 2, 4...)
+    return c % 2 === 0 ? 'up' : 'down'; // UP, DOWN, UP...
+  } else { // Odd rows (1, 3, 5...)
+    return c % 2 === 0 ? 'down' : 'up'; // DOWN, UP, DOWN...
   }
 };
 
@@ -33,7 +34,7 @@ export const addInitialTiles = async (grid: GridData): Promise<GridData> => {
   const { rows } = await getGridDimensions(newGrid);
 
   for (let r_add = 0; r_add < rows; r_add++) {
-    const numVisualTilesInThisRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; // All rows have same number of visual tiles
+    const numVisualTilesInThisRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
     for (let c_add = 0; c_add < numVisualTilesInThisRow; c_add++) {
         newGrid[r_add][c_add] = {
@@ -46,7 +47,7 @@ export const addInitialTiles = async (grid: GridData): Promise<GridData> => {
           isMatched: false,
         };
     }
-    // Ensure cells outside visual range are null if data array is wider (not the case here as GRID_WIDTH_TILES === VISUAL_TILES_PER_ROW)
+    // Ensure cells outside visual range are null if data array is wider
     for (let c_fill_null = numVisualTilesInThisRow; c_fill_null < GAME_SETTINGS.GRID_WIDTH_TILES; c_fill_null++) {
         newGrid[r_add][c_fill_null] = null;
     }
@@ -60,13 +61,10 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
   const lineCoords: {r: number, c: number}[] = [];
   const key = type === 'sum' ? startR + startC : startR - startC;
 
-  // Iterate through all possible cells in the grid's full dimensions
-  // to define the mathematical line completely, including nulls, within visual bounds.
+  // Iterate through all possible cells in the grid's visual dimensions
+  // to define the mathematical line completely, including nulls.
   for (let r_iter = 0; r_iter < rows; r_iter++) {
     for (let c_iter = 0; c_iter < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_iter++) {
-        // Only consider cells that are part of the visual grid for this row
-        if (c_iter >= GAME_SETTINGS.VISUAL_TILES_PER_ROW) continue;
-
         if (type === 'sum' && r_iter + c_iter === key) {
            lineCoords.push({ r: r_iter, c: c_iter }); // Collect all cells, including nulls
         } else if (type === 'diff' && r_iter - c_iter === key) {
@@ -90,7 +88,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
   const numCellsInLine = lineCoords.length;
 
   const originalTilesData: (Tile | null)[] = lineCoords.map(coord => {
-    const tile = grid[coord.r]?.[coord.c]; // Use original grid to get tile data
+    const tile = grid[coord.r]?.[coord.c];
     return tile ? {...tile} : null;
   });
 
@@ -115,7 +113,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // Crucial: orientation based on new position
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: true,
         isMatched: false,
       };
@@ -127,12 +125,12 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
           id: existingTileData.id, 
           row: targetCoord.r,
           col: targetCoord.c,
-          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // Crucial: orientation based on new position
+          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
           isNew: false,
           isMatched: false,
         };
       } else {
-        tileToPlace = null; 
+        tileToPlace = null; // Preserve empty spots
       }
     }
     newGrid[targetCoord.r][targetCoord.c] = tileToPlace;
@@ -260,8 +258,6 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
     let emptySlotR = -1; 
 
     for (let r_grav = numRows - 1; r_grav >= 0; r_grav--) {
-      if (c_grav >= GAME_SETTINGS.VISUAL_TILES_PER_ROW) continue; 
-
       if (newGrid[r_grav][c_grav] === null) {
         emptySlotR = r_grav;
         break; 
@@ -270,8 +266,6 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
 
     if (emptySlotR !== -1) {
       for (let r_grav_fill = emptySlotR - 1; r_grav_fill >= 0; r_grav_fill--) {
-        if (c_grav >= GAME_SETTINGS.VISUAL_TILES_PER_ROW) continue;
-
         if (newGrid[r_grav_fill][c_grav] !== null) {
           const tileToFall = newGrid[r_grav_fill][c_grav]!;
           newGrid[emptySlotR][c_grav] = {
@@ -279,7 +273,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
             id: tileToFall.id,
             row: emptySlotR,
             col: c_grav,
-            orientation: getExpectedOrientation(emptySlotR, c_grav), // Crucial: Recalculate orientation
+            orientation: getExpectedOrientation(emptySlotR, c_grav),
             isNew: false,
           };
           newGrid[r_grav_fill][c_grav] = null;
@@ -298,7 +292,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
           color: getRandomColor(),
           row: r_spawn,
           col: c_spawn,
-          orientation: getExpectedOrientation(r_spawn, c_spawn), // Crucial: Set orientation
+          orientation: getExpectedOrientation(r_spawn, c_spawn),
           isNew: true,
           isMatched: false,
         };
@@ -334,7 +328,7 @@ export const checkGameOver = async (grid: GridData): Promise<boolean> => {
         if (checkedDiagonals.has(diagonalKey)) continue;
 
         const lineCoords = await getTilesOnDiagonal(grid, r_diag, c_diag, type);
-        if (lineCoords.length > 0) { 
+        if (lineCoords.length > 1) { // Only test if line has more than 1 cell (meaning it's slidable)
           checkedDiagonals.add(diagonalKey);
 
           const tempGridForward = JSON.parse(JSON.stringify(grid));
@@ -350,4 +344,3 @@ export const checkGameOver = async (grid: GridData): Promise<boolean> => {
   }
   return true;
 };
-
