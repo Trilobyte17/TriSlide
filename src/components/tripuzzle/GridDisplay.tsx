@@ -51,6 +51,8 @@ export function GridDisplay({
 
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
+  
+  const gridRef = useRef<HTMLDivElement>(null); // Define gridRef
 
   const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
@@ -155,7 +157,7 @@ export function GridDisplay({
 
 
   const handleDragEnd = useCallback(() => {
-    const currentDragState = activeDragRef.current; // Use the ref for the most current state
+    const currentDragState = activeDragRef.current; 
     let slideInfo: {
       lineType: 'row' | DiagonalType;
       identifier: number | { r: number; c: number };
@@ -179,9 +181,12 @@ export function GridDisplay({
       }
     }
     
+    // Call setActiveDrag(null) first to update the child's state
     setActiveDrag(null); 
   
+    // Then, if a slide was determined, call onSlideCommit
     if (slideInfo) {
+      // Defer the parent state update to avoid "cannot update parent while rendering child"
       setTimeout(() => {
         onSlideCommit(slideInfo!.lineType, slideInfo!.identifier, slideInfo!.direction);
       }, 0);
@@ -189,10 +194,6 @@ export function GridDisplay({
   }, [onSlideCommit, TILE_BASE_WIDTH]);
 
   useEffect(() => {
-    // handleDragMove and handleDragEnd are stable due to useCallback
-    // The effect re-runs when `activeDrag` changes its truthiness (null vs. object)
-    // We use activeDragRef.current inside handleDragStart to check if a drag is already active.
-    // And activeDrag (the state) to decide whether to attach listeners.
     if (activeDrag) { 
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
@@ -277,5 +278,3 @@ export function GridDisplay({
     </div>
   );
 }
-
-    
