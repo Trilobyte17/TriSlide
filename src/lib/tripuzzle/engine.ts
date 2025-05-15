@@ -10,7 +10,7 @@ export const getGridDimensions = (grid: GridData): GridDimensions => {
   return { rows, cols };
 };
 
-// All rows now follow the same orientation pattern since there's no horizontal shift for tessellation.
+// All rows now follow the same orientation pattern.
 export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
   return c % 2 === 0 ? 'up' : 'down'; // Pattern: UP, DOWN, UP... for all rows
 };
@@ -18,7 +18,8 @@ export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
 export const initializeGrid = (rows: number, cols: number): GridData => {
   const grid: GridData = [];
   for (let r_init = 0; r_init < rows; r_init++) {
-    const row: (Tile | null)[] = new Array(cols).fill(null);
+    // All rows in the data structure will have GAME_SETTINGS.GRID_WIDTH_TILES columns
+    const row: (Tile | null)[] = new Array(GAME_SETTINGS.GRID_WIDTH_TILES).fill(null);
     grid.push(row);
   }
   return grid;
@@ -26,11 +27,10 @@ export const initializeGrid = (rows: number, cols: number): GridData => {
 
 export const addInitialTiles = (grid: GridData): GridData => {
   const newGrid = grid.map(row => [...row]);
-  const { rows, cols: maxDataCols } = getGridDimensions(newGrid); 
+  const { rows } = getGridDimensions(newGrid); 
 
   for (let r_add = 0; r_add < rows; r_add++) {
-    for (let c_add = 0; c_add < maxDataCols; c_add++) { 
-      if (c_add < GAME_SETTINGS.VISUAL_TILES_PER_ROW) { // All rows get VISUAL_TILES_PER_ROW
+    for (let c_add = 0; c_add < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_add++) { // All rows get VISUAL_TILES_PER_ROW
         newGrid[r_add][c_add] = {
           id: generateUniqueId(),
           color: getRandomColor(),
@@ -38,10 +38,12 @@ export const addInitialTiles = (grid: GridData): GridData => {
           col: c_add,
           orientation: getExpectedOrientation(r_add, c_add),
           isNew: true,
+          isMatched: false,
         };
-      } else {
-        newGrid[r_add][c_add] = null;
-      }
+    }
+    // Ensure remaining columns in data array (if GRID_WIDTH_TILES > VISUAL_TILES_PER_ROW) are null
+    for (let c_fill_null = GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_fill_null < GAME_SETTINGS.GRID_WIDTH_TILES; c_fill_null++) {
+        newGrid[r_add][c_fill_null] = null;
     }
   }
   return newGrid;
@@ -65,7 +67,7 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
   }
 
   if (type === 'sum') { 
-    lineCoords.sort((a, b) => a.r - b.r || b.c - a.c); 
+    lineCoords.sort((a, b) => a.r - b.r || b.c - a.c);  // Corrected: sum diagonals generally increase R and decrease C or vice-versa
   } else { 
     lineCoords.sort((a, b) => a.r - b.r || a.c - b.c); 
   }
@@ -139,85 +141,41 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
   
   if (rowCoords.length < 2) return grid; 
 
-  const slideDir: SlideDirection = direction === 'left' ? 'forward' : 'backward';
+  const slideDir: SlideDirection = direction === 'left' ? 'forward' : 'backward'; // For rows, left is like forward, right is backward
   return slideLine(grid, rowCoords, slideDir);
 };
 
-
+// Defines connections for a non-tessellated, stacked grid
 export const getNeighbors = (r: number, c: number, grid: GridData): {r: number, c: number}[] => {
   const neighbors: {r: number, c: number}[] = [];
   const { rows } = getGridDimensions(grid);
   const tile = grid[r]?.[c];
 
   if (!tile) return [];
-
-  const deltas = [
-    { dr: 0, dc: -1 }, // Left
-    { dr: 0, dc: 1 },  // Right
-  ];
-
-  // For stacked rows (no horizontal shift), neighbors are simpler
-  // An UP triangle has a DOWN neighbor below it (if it exists)
-  // A DOWN triangle has an UP neighbor above it (if it exists)
-  // These are based on orientation primarily.
   
-  // Tile above/below
-  if (tile.orientation === 'up' && r > 0) { // Can have a tile above
-    if (grid[r-1]?.[c]?.orientation === 'down') neighbors.push({r: r-1, c: c});
-  } else if (tile.orientation === 'down' && r < rows -1) { // Can have a tile below
-     if (grid[r+1]?.[c]?.orientation === 'up') neighbors.push({r: r+1, c: c});
+  // Left neighbor
+  if (c > 0 && grid[r]?.[c-1]?.orientation !== tile.orientation) {
+    neighbors.push({r, c: c-1});
   }
-
-  // For simple stacking, the "adjacent" same-row concept of up/down is more direct
-  // For an UP tile, its base connects to the base of a DOWN tile at c+1 and c-1 (if they are the correct orientation)
-  // For a DOWN tile, its tip connects to the tip of an UP tile at c+1 and c-1
-
-  // This existing delta logic for left/right is for finding *contacting* neighbors
-  // If tile (r,c) is UP, its right side contacts a DOWN tile at (r, c+1)
-  // If tile (r,c) is DOWN, its right side contacts an UP tile at (r, c+1)
-  for (const delta of deltas) {
-    const nr = r + delta.dr;
-    const nc = c + delta.dc;
-
-    if (nr >= 0 && nr < rows && nc >= 0 && nc < GAME_SETTINGS.VISUAL_TILES_PER_ROW) {
-      const neighborTile = grid[nr]?.[nc];
-      if (neighborTile && neighborTile.orientation !== tile.orientation) { // Must be opposite orientation to connect
-         // For same row neighbors, dc determines if it's left or right
-        if (delta.dr === 0) { // Same row
-            neighbors.push({ r: nr, c: nc });
-        }
-        // For different row neighbors (up/down), the logic becomes more complex without horizontal shift
-        // We will simplify for now and assume primary connections are within row and directly above/below based on orientation logic for simple stacking
-      }
+  // Right neighbor
+  if (c < GAME_SETTINGS.VISUAL_TILES_PER_ROW - 1 && grid[r]?.[c+1]?.orientation !== tile.orientation) {
+    neighbors.push({r, c: c+1});
+  }
+  
+  // Neighbor above/below (depends on current tile's orientation for direct contact)
+  if (tile.orientation === 'up') { // Tip points up, base is at bottom
+    // Can connect to a DOWN tile directly below it at (r+1, c) if it exists
+    if (r < rows - 1 && grid[r+1]?.[c]?.orientation === 'down') {
+      neighbors.push({r: r+1, c: c});
+    }
+  } else { // 'down', tip points down, base is at top
+    // Can connect to an UP tile directly above it at (r-1, c) if it exists
+    if (r > 0 && grid[r-1]?.[c]?.orientation === 'up') {
+      neighbors.push({r: r-1, c: c});
     }
   }
-  // More refined neighbor logic for non-tessellated stacking could be complex
-  // For now, this simplified version attempts to connect basic adjacencies.
 
-  // For a more robust Trism-like neighbor finding in a non-shifted grid, 
-  // one would typically define explicit connection points.
-  // The current one above is a simplification.
-
-  // Let's refine for simple stacking:
-  // A tile connects to its left and right neighbor in the same row if they exist and have opposite orientation.
-  // An UP tile connects to a DOWN tile directly below it *at the same column index `c`* if it exists.
-  // A DOWN tile connects to an UP tile directly above it *at the same column index `c`* if it exists.
-  const refinedNeighbors: {r: number, c: number}[] = [];
-  // Left neighbor
-  if (c > 0 && grid[r]?.[c-1]?.orientation !== tile.orientation) refinedNeighbors.push({r, c: c-1});
-  // Right neighbor
-  if (c < GAME_SETTINGS.VISUAL_TILES_PER_ROW - 1 && grid[r]?.[c+1]?.orientation !== tile.orientation) refinedNeighbors.push({r, c: c+1});
-  
-  // Neighbor above/below (depends on current tile's orientation)
-  if (tile.orientation === 'up') { // Tip points up, base is at bottom
-    // Can connect to a DOWN tile below it at (r+1, c)
-    if (r < rows - 1 && grid[r+1]?.[c]?.orientation === 'down') refinedNeighbors.push({r: r+1, c: c});
-  } else { // 'down', tip points down, base is at top
-    // Can connect to an UP tile above it at (r-1, c)
-    if (r > 0 && grid[r-1]?.[c]?.orientation === 'up') refinedNeighbors.push({r: r-1, c: c});
-  }
-
-  return refinedNeighbors.filter(n => grid[n.r]?.[n.c]); // Ensure the neighbor actually exists
+  return neighbors.filter(n => grid[n.r]?.[n.c]); // Ensure the neighbor actually exists
 };
 
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
@@ -278,9 +236,8 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
 
   // Gravity: Tiles fall straight down within their column.
   for (let c_grav = 0; c_grav < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_grav++) {
-    let emptySlotR = -1; // Keep track of the lowest empty slot in the current column
+    let emptySlotR = -1; 
 
-    // Find the first empty slot from the bottom up
     for (let r_grav = numRows - 1; r_grav >= 0; r_grav--) {
       if (newGrid[r_grav][c_grav] === null) {
         emptySlotR = r_grav;
@@ -288,7 +245,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
       }
     }
 
-    // If there's an empty slot, fill it from above
     if (emptySlotR !== -1) {
       for (let r_grav = emptySlotR - 1; r_grav >= 0; r_grav--) {
         if (newGrid[r_grav][c_grav] !== null) {
@@ -296,13 +252,13 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
           newGrid[emptySlotR][c_grav] = {
             ...tileToFall,
             row: emptySlotR,
-            col: c_grav, // Column remains the same
-            orientation: getExpectedOrientation(emptySlotR, c_grav), // Recalculate orientation for new row
+            col: c_grav, 
+            orientation: getExpectedOrientation(emptySlotR, c_grav),
             isNew: false,
           };
           newGrid[r_grav][c_grav] = null;
-          emptySlotR--; // Move to the next empty slot above
-          if (emptySlotR < 0) break; // No more empty slots above
+          emptySlotR--; 
+          if (emptySlotR < 0) break; 
         }
       }
     }
@@ -319,6 +275,7 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
           col: c_spawn,
           orientation: getExpectedOrientation(r_spawn, c_spawn), 
           isNew: true,
+          isMatched: false,
         };
       }
     }
@@ -334,7 +291,12 @@ export const checkGameOver = (grid: GridData): boolean => {
 
   // Check horizontal slides
   for (let r_slide = 0; r_slide < numRows; r_slide++) {
-    if (GAME_SETTINGS.VISUAL_TILES_PER_ROW > 1) { 
+    // Ensure there are enough tiles in the row to slide
+    let tilesInRow = 0;
+    for(let c_count = 0; c_count < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_count++) {
+        if(grid[r_slide]?.[c_count]) tilesInRow++;
+    }
+    if (tilesInRow > 1) { 
         const tempGridLeft = JSON.parse(JSON.stringify(grid));
         const gridAfterLeftSlide = slideRow(tempGridLeft, r_slide, 'left');
         if (findAndMarkMatches(gridAfterLeftSlide).hasMatches) return false;
