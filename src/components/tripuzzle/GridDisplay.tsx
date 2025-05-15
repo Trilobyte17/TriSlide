@@ -41,19 +41,17 @@ export function GridDisplay({
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
 
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; // All rows have same visual width
+  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
+  const activeDragRef = useRef<ActiveDragState | null>(null);
+  useEffect(() => {
+    activeDragRef.current = activeDrag;
+  }, [activeDrag]);
 
-  const onSlideCommitRef = useRef(onSlideCommit);
-  useEffect(() => { onSlideCommitRef.current = onSlideCommit; }, [onSlideCommit]);
-  const isProcessingMoveRef = useRef(isProcessingMove);
-  useEffect(() => { isProcessingMoveRef.current = isProcessingMove; }, [isProcessingMove]);
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  // For N tiles in a row (no horizontal staggering), width is (N+1)/2 * TILE_BASE_WIDTH
   const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
@@ -62,8 +60,11 @@ export function GridDisplay({
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
   const getTilePosition = (r: number, c: number) => {
-    // No horizontal shift for odd rows
-    const x = c * (TILE_BASE_WIDTH / 2);
+    let x = c * (TILE_BASE_WIDTH / 2);
+    // No horizontal shift for odd rows in the current 11-wide, 12-high configuration
+    // if (r % 2 !== 0) { 
+    //   x += TILE_BASE_WIDTH / 2;
+    // }
     const y = r * TILE_HEIGHT;
     return {
       x: x + positionOffset,
@@ -72,7 +73,7 @@ export function GridDisplay({
   };
 
   const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
-    if (isProcessingMoveRef.current || activeDrag) return;
+    if (isProcessingMove || activeDragRef.current) return;
     if (!gridDataRef.current[r]?.[c]) return;
 
     if (event.type === 'mousedown') event.preventDefault();
@@ -91,103 +92,108 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]); // Removed TILE_BASE_WIDTH dependency as it's from GAME_SETTINGS
+  }, [isProcessingMove]);
+
+  const handleDragMove = useCallback(async (event: MouseEvent | TouchEvent) => {
+    const currentDragState = activeDragRef.current;
+    if (!currentDragState) return;
+
+    const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
+    const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+
+    const deltaX = clientX - currentDragState.startScreenX;
+    const deltaY = clientY - currentDragState.startScreenY;
+
+    let newDragAxisLocked = currentDragState.dragAxisLocked;
+    let newDraggedLineCoords = currentDragState.draggedLineCoords;
+    let newVisualOffset = currentDragState.visualOffset;
+
+    if (!newDragAxisLocked) {
+      const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      if (dragDistance > GAME_SETTINGS.DRAG_THRESHOLD) {
+        const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+        let determinedAxis: DragAxis | null = null;
+        let determinedLineCoords: { r: number; c: number }[] | null = null;
+
+        if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
+          determinedAxis = 'row';
+          const rowPath: {r:number, c:number}[] = [];
+          for(let colIdx = 0; colIdx < visualTilesPerRow; colIdx++) {
+             rowPath.push({r: currentDragState.startTileR, c: colIdx});
+          }
+          determinedLineCoords = rowPath;
+        } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) {
+          determinedAxis = 'diff';
+          determinedLineCoords = await getTilesOnDiagonalEngine(gridDataRef.current, currentDragState.startTileR, currentDragState.startTileC, 'diff');
+        } else if ((angle >= 90 && angle <= 150) || (angle <= -30 && angle >= -90)) {
+          determinedAxis = 'sum';
+          determinedLineCoords = await getTilesOnDiagonalEngine(gridDataRef.current, currentDragState.startTileR, currentDragState.startTileC, 'sum');
+        }
+        newDragAxisLocked = determinedAxis;
+        newDraggedLineCoords = determinedLineCoords;
+      }
+    }
+
+    if (newDragAxisLocked && newDraggedLineCoords) {
+      if (newDragAxisLocked === 'row') {
+        newVisualOffset = deltaX;
+      } else {
+        const angleRad = newDragAxisLocked === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3);
+        newVisualOffset = deltaX * Math.cos(angleRad) + deltaY * Math.sin(angleRad);
+      }
+    }
+
+    setActiveDrag({
+      ...currentDragState,
+      currentScreenX: clientX,
+      currentScreenY: clientY,
+      dragAxisLocked: newDragAxisLocked,
+      draggedLineCoords: newDraggedLineCoords,
+      visualOffset: newVisualOffset,
+    });
+  }, [visualTilesPerRow]);
+
+
+  const handleDragEnd = useCallback(() => {
+    const currentDragState = activeDragRef.current; // Use the ref for the most current state
+    let slideInfo: {
+      lineType: 'row' | DiagonalType;
+      identifier: number | { r: number; c: number };
+      direction: SlideDirection | ('left' | 'right');
+    } | null = null;
+  
+    if (currentDragState && currentDragState.dragAxisLocked && currentDragState.draggedLineCoords && currentDragState.draggedLineCoords.length >= 1) {
+      const { dragAxisLocked, startTileR, startTileC, visualOffset } = currentDragState;
+      const slideThreshold = TILE_BASE_WIDTH * 0.40;
+  
+      if (Math.abs(visualOffset) > slideThreshold) {
+        const direction = visualOffset > 0 ?
+          (dragAxisLocked === 'row' ? 'right' : 'forward') :
+          (dragAxisLocked === 'row' ? 'left' : 'backward');
+  
+        const lineTypeToCommit = dragAxisLocked;
+        const identifierToCommit = dragAxisLocked === 'row' ? startTileR : { r: startTileR, c: startTileC };
+        const directionToCommit = direction as SlideDirection | ('left' | 'right');
+        
+        slideInfo = { lineType: lineTypeToCommit, identifier: identifierToCommit, direction: directionToCommit };
+      }
+    }
+    
+    setActiveDrag(null); 
+  
+    if (slideInfo) {
+      setTimeout(() => {
+        onSlideCommit(slideInfo!.lineType, slideInfo!.identifier, slideInfo!.direction);
+      }, 0);
+    }
+  }, [onSlideCommit, TILE_BASE_WIDTH]);
 
   useEffect(() => {
-    const handleDragMove = (event: MouseEvent | TouchEvent) => {
-      setActiveDrag(prevDrag => {
-        if (!prevDrag) return null;
-
-        const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
-        const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
-        const deltaX = clientX - prevDrag.startScreenX;
-        const deltaY = clientY - prevDrag.startScreenY;
-
-        let currentDragAxis = prevDrag.dragAxisLocked;
-        let currentLineCoords = prevDrag.draggedLineCoords;
-        let currentVisualOffset = 0;
-
-        if (!currentDragAxis) {
-          const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-          if (dragDistance > GAME_SETTINGS.DRAG_THRESHOLD) {
-            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-
-            if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
-              currentDragAxis = 'row';
-              const rowPath: {r:number, c:number}[] = [];
-              for(let colIdx = 0; colIdx < visualTilesPerRow; colIdx++) { // Use consistent visualTilesPerRow
-                 rowPath.push({r: prevDrag.startTileR, c: colIdx});
-              }
-              currentLineCoords = rowPath;
-            }
-            else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) {
-              currentDragAxis = 'diff'; // Typically corresponds to '\' like diagonals
-              currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'diff');
-            }
-            else if ((angle >= 90 && angle <= 150) || (angle <= -30 && angle >= -90)) {
-              currentDragAxis = 'sum'; // Typically corresponds to '/' like diagonals
-              currentLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, prevDrag.startTileR, prevDrag.startTileC, 'sum');
-            }
-          }
-        }
-
-        if (currentDragAxis && currentLineCoords) {
-          if (currentDragAxis === 'row') {
-            currentVisualOffset = deltaX;
-          } else {
-            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3);
-            currentVisualOffset = deltaX * Math.cos(angleRad) + deltaY * Math.sin(angleRad);
-          }
-        }
-
-        return {
-          ...prevDrag,
-          currentScreenX: clientX,
-          currentScreenY: clientY,
-          dragAxisLocked: currentDragAxis,
-          draggedLineCoords: currentLineCoords,
-          visualOffset: currentVisualOffset,
-        };
-      });
-    };
-
-    const handleDragEnd = () => {
-      let slideInfo: {
-        lineType: 'row' | DiagonalType;
-        identifier: number | { r: number; c: number };
-        direction: SlideDirection | ('left' | 'right');
-      } | null = null;
-    
-      if (activeDrag && activeDrag.dragAxisLocked && activeDrag.draggedLineCoords && activeDrag.draggedLineCoords.length >= 1) {
-        const { dragAxisLocked, startTileR, startTileC, visualOffset } = activeDrag;
-        const slideThreshold = TILE_BASE_WIDTH * 0.40; // Use TILE_BASE_WIDTH from GAME_SETTINGS
-    
-        if (Math.abs(visualOffset) > slideThreshold) {
-          const direction = visualOffset > 0 ?
-            (dragAxisLocked === 'row' ? 'right' : 'forward') :
-            (dragAxisLocked === 'row' ? 'left' : 'backward');
-    
-          const lineTypeToCommit = dragAxisLocked;
-          const identifierToCommit = dragAxisLocked === 'row' ? startTileR : { r: startTileR, c: startTileC };
-          const directionToCommit = direction as SlideDirection | ('left' | 'right');
-          
-          slideInfo = { lineType: lineTypeToCommit, identifier: identifierToCommit, direction: directionToCommit };
-        }
-      }
-      
-      const previousActiveDrag = activeDrag; // Store for potential use
-      setActiveDrag(null); 
-    
-      if (slideInfo) {
-        // Defer parent state update
-        setTimeout(() => {
-          onSlideCommitRef.current(slideInfo!.lineType, slideInfo!.identifier, slideInfo!.direction);
-        }, 0);
-      }
-    };
-
-
-    if (activeDrag) {
+    // handleDragMove and handleDragEnd are stable due to useCallback
+    // The effect re-runs when `activeDrag` changes its truthiness (null vs. object)
+    // We use activeDragRef.current inside handleDragStart to check if a drag is already active.
+    // And activeDrag (the state) to decide whether to attach listeners.
+    if (activeDrag) { 
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
       document.addEventListener('touchmove', handleDragMove, { passive: false });
@@ -202,7 +208,7 @@ export function GridDisplay({
       document.removeEventListener('touchend', handleDragEnd);
       document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, visualTilesPerRow, TILE_BASE_WIDTH]); // Added TILE_BASE_WIDTH
+  }, [activeDrag, handleDragMove, handleDragEnd]);
 
   return (
     <div
@@ -212,13 +218,12 @@ export function GridDisplay({
       style={{
         width: `${styledContainerWidth}px`,
         height: `${styledContainerHeight}px`,
-        overflow: 'hidden', // Keep overflow hidden to clip tiles during slide
+        overflow: 'hidden',
       }}
       ref={gridRef}
     >
       {gridData.map((row, rIndex) => {
-        // All rows have visualTilesPerRow
-        return row.slice(0, visualTilesPerRow).map((tileData, cIndex) => { // Only map up to visualTilesPerRow
+        return row.slice(0, visualTilesPerRow).map((tileData, cIndex) => {
            if (!tileData) return null;
 
           const { x, y } = getTilePosition(rIndex, cIndex);
@@ -273,3 +278,4 @@ export function GridDisplay({
   );
 }
 
+    
