@@ -41,7 +41,8 @@ export function GridDisplay({
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
 
   const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const maxTilesInRow = GAME_SETTINGS.GRID_WIDTH_TILES; 
+  // maxTilesInRowVisual is the maximum number of tiles visually present in any row (e.g., 6 for even rows)
+  const maxTilesInRowVisual = 6; 
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -53,7 +54,22 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  const mathGridWidth = (maxTilesInRow + 1) * TILE_BASE_WIDTH / 2;
+  // Calculate the mathematical width of the grid based on visual tiles
+  // For max 6 tiles in a row (even rows), or 5 tiles shifted (odd rows),
+  // the total width needed is 3.5 tile base widths.
+  // ( (maxTilesInRowVisual / 2) + ( (maxTilesInRowVisual -1) / 2) ) * TILE_BASE_WIDTH
+  // For 6 tiles: (6/2 columns of full tiles + 5/2 columns of half tiles for staggering)
+  // Equivalent to (maxTilesInRowVisual + 1) / 2 * TILE_BASE_WIDTH if thinking in pairs of up/down triangles
+  // Max 6 tiles in a row, shifted odd rows have 5.
+  // An even row (6 tiles) occupies 6 * (TBW/2) = 3 * TBW from leftmost point of first to rightmost of last.
+  // An odd row (5 tiles) shifted by TBW/2 also occupies 3 * TBW effectively.
+  // The container needs to accommodate (maxTilesInRowVisual / 2) * TILE_BASE_WIDTH + TILE_BASE_WIDTH / 2 if maxTilesInRowVisual is odd.
+  // Or more generally, (maxTilesInRowVisual + (maxTilesInRowVisual % 2 === 0 ? 0 : 1)) * TILE_BASE_WIDTH / 2
+  // Let's use a simpler calculation that works for the 6/5 pattern:
+  // Widest visual part: A row of 6 tiles. Each tile contributes TBW/2 to width. So 6 * TBW/2 = 3 * TBW.
+  // If odd rows (5 tiles) are shifted by TBW/2, their rightmost point aligns with the 6-tile rows.
+  const mathGridWidth = (maxTilesInRowVisual) * TILE_BASE_WIDTH / 2 + (TILE_BASE_WIDTH / 2); // (6+1)/2 * TBW = 3.5 * TBW
+
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
@@ -100,7 +116,7 @@ export function GridDisplay({
         if (!prevDrag) return null;
 
         if (event.type === 'touchmove' && prevDrag.dragAxisLocked) {
-          event.preventDefault();
+          // event.preventDefault(); // Be careful with this on touch devices if scrolling is needed elsewhere
         }
 
         const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
@@ -120,8 +136,8 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) { 
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              const numTilesInRowData = gridDataRef.current[prevDrag.startTileR]?.filter(tile => tile !== null).length || 0;
-              for(let colIdx = 0; colIdx < numTilesInRowData; colIdx++) {
+              const numTilesInRowDataVisual = (prevDrag.startTileR % 2 === 0) ? 6 : 5;
+              for(let colIdx = 0; colIdx < numTilesInRowDataVisual; colIdx++) {
                   if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
                      rowPath.push({r: prevDrag.startTileR, c: colIdx});
                   }
@@ -143,7 +159,9 @@ export function GridDisplay({
           if (currentDragAxis === 'row') {
             currentVisualOffset = deltaX;
           } else { 
-            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3);
+            // Approximate projection for diagonal drag feel.
+            // sum (/) is roughly 120 deg from positive x-axis. diff (\) is roughly 60 deg.
+            const angleRad = currentDragAxis === 'sum' ? (2 * Math.PI / 3) : (Math.PI / 3); 
             currentVisualOffset = deltaX * Math.cos(angleRad) + deltaY * Math.sin(angleRad);
           }
         }
@@ -214,7 +232,9 @@ export function GridDisplay({
     >
       {gridData.map((row, rIndex) =>
         row.map((tileData, cIndex) => {
-          if (!tileData) return null; 
+          // Determine if this tile should be rendered based on row type
+          const tilesInThisRowVisual = (rIndex % 2 === 0) ? 6 : 5;
+          if (cIndex >= tilesInThisRowVisual || !tileData) return null; 
 
           const { x, y } = getTilePosition(rIndex, cIndex);
           let transform = 'translate(0px, 0px)';
