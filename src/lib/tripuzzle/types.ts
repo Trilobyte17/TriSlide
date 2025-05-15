@@ -33,8 +33,9 @@ const TARGET_TILE_BASE_WIDTH = 40;
 const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
-  GRID_WIDTH_TILES: 11, // Max columns in the data array, allows for 6 visual tiles in even, 5 in odd + buffer for sliding
-  GRID_HEIGHT_TILES: 15,
+  GRID_WIDTH_TILES: 11, // Max columns in the data array for internal logic, allows for 6 visual tiles + buffer
+  GRID_HEIGHT_TILES: 14, // Updated from 15
+  VISUAL_TILES_PER_ROW: 6, // All rows will have this many visual tiles
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const, 
   SCORE_PER_MATCHED_TILE: 10,
