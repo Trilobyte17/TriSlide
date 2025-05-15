@@ -29,13 +29,13 @@ export interface GridDimensions {
   cols: number;
 }
 
-const TARGET_TILE_BASE_WIDTH = 40;
+const TARGET_TILE_BASE_WIDTH = 40; 
 const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
-  GRID_WIDTH_TILES: 11, // Max columns in the data array
+  GRID_WIDTH_TILES: 6, // Max columns in the data array, should match widest visual row
   GRID_HEIGHT_TILES: 12, // Number of rows
-  VISUAL_TILES_PER_ROW: 11, // Visual tiles per row (can be less than GRID_WIDTH_TILES for jagged edges if needed)
+  VISUAL_TILES_PER_ROW: 6, // Visual tiles in the WIDEST (even) rows. Odd rows will have one less.
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const,
   SCORE_PER_MATCHED_TILE: 10,
