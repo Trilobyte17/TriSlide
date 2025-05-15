@@ -26,7 +26,7 @@ const LOCAL_STORAGE_KEY = 'triSlideGameState_v8_diagDrag';
 export default function TriSlidePage() {
   const { toast } = useToast();
   const [gameState, setGameState] = useState<GameState>({
-    grid: initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES),
+    grid: [], // Initialize with empty grid, will be populated by createNewGame
     score: 0,
     isGameOver: false,
     isGameStarted: false,
@@ -80,12 +80,12 @@ export default function TriSlidePage() {
     }
     setIsProcessingMove(false);
     return { ...gameState, grid: grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
-  }, [toast, gameState.isGameOver, gameState]); 
+  }, [toast, gameState.isGameOver, gameState]); // Added gameState to dependencies
 
   const createNewGame = useCallback(async () => {
     setIsProcessingMove(true);
-    const initialGridData = initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES);
-    const gridWithInitialTiles = addInitialTiles(initialGridData); 
+    const initialGridData = await initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES);
+    const gridWithInitialTiles = await addInitialTiles(initialGridData); 
     
     const finalInitialState = await processMatchesAndGravity(gridWithInitialTiles, 0);
     
@@ -263,3 +263,4 @@ export default function TriSlidePage() {
     </>
   );
 }
+
