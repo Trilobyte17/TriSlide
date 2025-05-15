@@ -53,8 +53,6 @@ export function GridDisplay({
   const gridDataRef = useRef(gridData);
   useEffect(() => { gridDataRef.current = gridData; }, [gridData]);
 
-  // For N visual tiles per row, the width is (N + 1) / 2 * TILE_BASE_WIDTH
-  // e.g., for 11 tiles: (11+1)/2 * TBW = 6 * TBW
   const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
@@ -63,7 +61,10 @@ export function GridDisplay({
   const positionOffset = TILE_BORDER_WIDTH / 2; 
 
   const getTilePosition = (r: number, c: number) => {
-    const x = c * (TILE_BASE_WIDTH / 2);
+    let x = c * (TILE_BASE_WIDTH / 2);
+    if (r % 2 !== 0) { 
+      x += TILE_BASE_WIDTH / 2;
+    }
     const y = r * TILE_HEIGHT;
     return {
       x: x + positionOffset,
@@ -91,7 +92,7 @@ export function GridDisplay({
       draggedLineCoords: null,
       visualOffset: 0,
     });
-  }, [activeDrag]); 
+  }, [activeDrag]); // Removed TILE_BASE_WIDTH as it comes from GAME_SETTINGS
 
   useEffect(() => {
     const handleDragMove = (event: MouseEvent | TouchEvent) => {
@@ -119,10 +120,14 @@ export function GridDisplay({
             if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) { 
               currentDragAxis = 'row';
               const rowPath: {r:number, c:number}[] = [];
-              for(let colIdx = 0; colIdx < visualTilesPerRow; colIdx++) {
-                  if(gridDataRef.current[prevDrag.startTileR]?.[colIdx]) {
+              for(let colIdx = 0; colIdx < GAME_SETTINGS.VISUAL_TILES_PER_ROW; colIdx++) {
+                // Ensure we don't try to access beyond the actual visual row for odd rows if they are shorter
+                const currentMaxColsInRow = (prevDrag.startTileR % 2 !== 0 && GAME_SETTINGS.VISUAL_TILES_PER_ROW < GAME_SETTINGS.GRID_WIDTH_TILES) 
+                                            ? GAME_SETTINGS.VISUAL_TILES_PER_ROW -1 
+                                            : GAME_SETTINGS.VISUAL_TILES_PER_ROW;
+                if(colIdx < currentMaxColsInRow) { // Ensure tile exists in this column for the row
                      rowPath.push({r: prevDrag.startTileR, c: colIdx});
-                  }
+                }
               }
               currentLineCoords = rowPath;
             } 
@@ -158,27 +163,30 @@ export function GridDisplay({
     };
 
     const handleDragEnd = () => {
-      setActiveDrag(currentActiveDragState => {
-        if (!currentActiveDragState || !currentActiveDragState.dragAxisLocked || !currentActiveDragState.draggedLineCoords || currentActiveDragState.draggedLineCoords.length < 2) {
-          return null; 
-        }
-  
+      const currentActiveDragState = activeDrag; // Capture state before clearing
+      setActiveDrag(null); // Update child state first
+
+      if (currentActiveDragState && currentActiveDragState.dragAxisLocked && currentActiveDragState.draggedLineCoords && currentActiveDragState.draggedLineCoords.length >= 2) {
         const { dragAxisLocked, startTileR, startTileC, visualOffset } = currentActiveDragState;
-        const slideThreshold = TILE_BASE_WIDTH * 0.40; 
+        const slideThreshold = GAME_SETTINGS.TILE_BASE_WIDTH * 0.40; 
   
         if (Math.abs(visualOffset) > slideThreshold) {
           const direction = visualOffset > 0 ?
             (dragAxisLocked === 'row' ? 'right' : 'forward') :
             (dragAxisLocked === 'row' ? 'left' : 'backward');
   
-          if (dragAxisLocked === 'row') {
-            onSlideCommitRef.current('row', startTileR, direction as 'left' | 'right');
-          } else if (dragAxisLocked === 'sum' || dragAxisLocked === 'diff') {
-            onSlideCommitRef.current(dragAxisLocked, { r: startTileR, c: startTileC }, direction as SlideDirection);
-          }
+          const lineTypeToCommit = dragAxisLocked;
+          const identifierToCommit = dragAxisLocked === 'row' ? startTileR : { r: startTileR, c: startTileC };
+          const directionToCommit = direction as SlideDirection | ('left' | 'right');
+          
+          // Defer parent update to the next tick of the event loop
+          setTimeout(() => {
+            // Optional: Re-check isProcessingMove if it could change between dragEnd and this timeout
+            // if (isProcessingMoveRef.current) return; 
+            onSlideCommitRef.current(lineTypeToCommit, identifierToCommit, directionToCommit);
+          }, 0);
         }
-        return null; 
-      });
+      }
     };
 
     if (activeDrag) {
@@ -196,7 +204,7 @@ export function GridDisplay({
       document.removeEventListener('touchend', handleDragEnd);
       document.removeEventListener('touchcancel', handleDragEnd);
     };
-  }, [activeDrag, TILE_BASE_WIDTH, visualTilesPerRow]); 
+  }, [activeDrag]); 
 
   return (
     <div
@@ -212,7 +220,12 @@ export function GridDisplay({
     >
       {gridData.map((row, rIndex) =>
         row.map((tileData, cIndex) => {
-          if (cIndex >= visualTilesPerRow || !tileData) return null; 
+          // Adjust column iteration based on visual tiles per row, respecting odd/even row differences if any
+           const maxColsForThisRow = (rIndex % 2 !== 0 && visualTilesPerRow < GAME_SETTINGS.GRID_WIDTH_TILES) 
+                                    ? visualTilesPerRow -1 
+                                    : visualTilesPerRow;
+
+          if (cIndex >= maxColsForThisRow || !tileData) return null; 
 
           const { x, y } = getTilePosition(rIndex, cIndex);
           let transform = 'translate(0px, 0px)';
@@ -265,3 +278,4 @@ export function GridDisplay({
     </div>
   );
 }
+
