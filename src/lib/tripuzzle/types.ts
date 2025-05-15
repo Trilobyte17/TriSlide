@@ -34,7 +34,7 @@ const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
   GRID_WIDTH_TILES: 11, // Max columns in the data array, matching visual tiles per row
-  GRID_HEIGHT_TILES: 11, // Updated from 14 to 11
+  GRID_HEIGHT_TILES: 12, // Updated from 11 to 12
   VISUAL_TILES_PER_ROW: 11, // Updated from 9 to 11
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const, 
