@@ -29,7 +29,7 @@ export function Tile({ tile }: TileProps) {
   const points = tile.orientation === 'up' ? upPoints : downPoints;
   const uniqueGlossyId = `glossy-${tile.id}`;
 
-  const borderStroke = tile.isMatched ? `hsl(var(--tile-active-border))` : `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
+  const borderStroke = tile.isMatched ? `hsl(var(--debug-match-border-color))` : `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
   const borderStrokeWidth = tile.isMatched ? 3 : GAME_SETTINGS.TILE_BORDER_WIDTH;
 
   return (

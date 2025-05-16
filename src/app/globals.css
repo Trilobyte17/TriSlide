@@ -44,11 +44,11 @@ body {
     --tile-2: 220 80% 65%;  /* Vivid Blue */
     --tile-3: 50 90% 60%;   /* Vivid Yellow */
     --tile-4: 280 70% 65%;  /* Vivid Purple */
-    /* --tile-5: 30 80% 80%;  /* Light Orange - not used in current 5 color set */
     
     --tile-text: 220 25% 20%; 
     --tile-active-border: 30 90% 60%; 
-    --tile-potential-merge-glow: 30 90% 70%; 
+    --tile-potential-merge-glow: 30 90% 70%;
+    --debug-match-border-color: 300 100% 50%; /* Bright Magenta for debug */
 
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -101,11 +101,12 @@ body {
     --tile-2: 220 70% 55%;  /* Dark Vivid Blue */
     --tile-3: 50 80% 50%;   /* Dark Vivid Yellow */
     --tile-4: 280 60% 55%;  /* Dark Vivid Purple */
-    /* --tile-5: 30 70% 50%; */
     
     --tile-text: 0 0% 95%;
     --tile-active-border: 30 80% 65%;
     --tile-potential-merge-glow: 30 80% 55%;
+    --debug-match-border-color: 300 100% 60%; /* Bright Magenta for debug - slightly lighter for dark mode */
+
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
