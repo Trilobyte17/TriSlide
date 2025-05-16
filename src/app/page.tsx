@@ -243,11 +243,13 @@ export default function TriSlidePage() {
               isProcessingMove={isProcessingMove}
               onSlideCommit={handleSlideCommit}
             />
+            {/* Removed Processing Pop-up
             {isProcessingMove && !gameState.isGameOver && ( 
               <div className="fixed inset-0 flex items-center justify-center bg-background/10 z-40 backdrop-blur-sm">
                 <p className="text-lg font-semibold p-4 bg-card rounded-md shadow-lg animate-pulse">Processing...</p>
               </div>
             )}
+            */}
             <GameOverDialog
               isOpen={gameState.isGameOver}
               score={gameState.score}
