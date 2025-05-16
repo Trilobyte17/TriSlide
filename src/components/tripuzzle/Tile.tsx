@@ -21,16 +21,19 @@ export function Tile({ tile }: TileProps) {
   const uniqueGlossyId = `glossy-${tile.id}`;
 
   let tileFillColor = tileStyle.backgroundColor;
-  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`; // Default border
+  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`; 
   let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH;
-  let tileFilter = 'none'; // Default filter
+  let tileClassName = "";
 
   if (tile.isMatched) {
-    tileFillColor = tileStyle.backgroundColor; // Retain original color
-    currentBorderStroke = 'hsl(0 0% 0%)'; // Solid black border for matched tiles
-    currentBorderStrokeWidth = 3; // Make border thicker for matched tiles
-    tileFilter = 'none'; // No special filter for simple black border
+    // Matched tiles will vanish. The animation handles their appearance.
+    // We don't need to change fill or border here specifically for matching,
+    // as the animation will take over.
+    tileClassName = "animate-tile-vanish";
+  } else if (tile.isNew) {
+    tileClassName = "animate-tile-spawn";
   }
+
 
   return (
     <svg
@@ -41,12 +44,11 @@ export function Tile({ tile }: TileProps) {
       className={cn(
         "select-none transition-all duration-300 ease-out",
         "focus:outline-none", 
-        tile.isNew && "animate-tile-spawn",
+        tileClassName
       )}
       style={
         {
            pointerEvents: 'none',
-           filter: tileFilter,
         }
       }
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
@@ -66,7 +68,7 @@ export function Tile({ tile }: TileProps) {
           strokeWidth: currentBorderStrokeWidth,
         }}
       />
-      {/* Only apply glossy effect if not matched */}
+      {/* Only apply glossy effect if not matched and not vanishing */}
       {!tile.isMatched && (
         <polygon
           points={points}
