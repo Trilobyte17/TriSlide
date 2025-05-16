@@ -21,18 +21,15 @@ export function Tile({ tile }: TileProps) {
   const uniqueGlossyId = `glossy-${tile.id}`;
 
   let tileFillColor = tileStyle.backgroundColor;
-  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
+  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`; // Default border
   let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH;
-  let tileFilter = 'none'; // Default filter, no glow
+  let tileFilter = 'none'; // Default filter
 
   if (tile.isMatched) {
-    // Retain original fill color for matched tiles
-    tileFillColor = tileStyle.backgroundColor; 
-    currentBorderStroke = `hsl(var(--debug-match-border-color))`; // Use debug color for border
-    currentBorderStrokeWidth = 2.5; // Make border thicker for matched tiles
-    // Apply a prominent glow using multiple drop shadows
-    const glowColor = `hsl(var(--debug-match-border-color))`;
-    tileFilter = `drop-shadow(0 0 3px ${glowColor}) drop-shadow(0 0 6px ${glowColor})`;
+    tileFillColor = tileStyle.backgroundColor; // Retain original color
+    currentBorderStroke = 'hsl(0 0% 0%)'; // Solid black border for matched tiles
+    currentBorderStrokeWidth = 3; // Make border thicker for matched tiles
+    tileFilter = 'none'; // No special filter for simple black border
   }
 
   return (
@@ -49,7 +46,7 @@ export function Tile({ tile }: TileProps) {
       style={
         {
            pointerEvents: 'none',
-           filter: tileFilter, // Apply dynamic filter for glow
+           filter: tileFilter,
         }
       }
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
@@ -64,12 +61,13 @@ export function Tile({ tile }: TileProps) {
       <polygon
         points={points}
         style={{
-          fill: tileFillColor, // Use dynamic fill color
+          fill: tileFillColor,
           stroke: currentBorderStroke, 
           strokeWidth: currentBorderStrokeWidth,
         }}
       />
-      {!tile.isMatched && ( // Only apply glossy effect if not matched
+      {/* Only apply glossy effect if not matched */}
+      {!tile.isMatched && (
         <polygon
           points={points}
           style={{ fill: `url(#${uniqueGlossyId})` }}
