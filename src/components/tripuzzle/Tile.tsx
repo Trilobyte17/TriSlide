@@ -26,10 +26,11 @@ export function Tile({ tile }: TileProps) {
   let tileFilter = 'none'; // Default filter, no glow
 
   if (tile.isMatched) {
-    tileFillColor = 'white'; // Bright white fill for matched tiles
+    // Retain original fill color for matched tiles
+    tileFillColor = tileStyle.backgroundColor; 
     currentBorderStroke = `hsl(var(--debug-match-border-color))`; // Use debug color for border
     currentBorderStrokeWidth = 2.5; // Make border thicker for matched tiles
-    // Apply a more prominent glow using multiple drop shadows
+    // Apply a prominent glow using multiple drop shadows
     const glowColor = `hsl(var(--debug-match-border-color))`;
     tileFilter = `drop-shadow(0 0 3px ${glowColor}) drop-shadow(0 0 6px ${glowColor})`;
   }
@@ -68,7 +69,7 @@ export function Tile({ tile }: TileProps) {
           strokeWidth: currentBorderStrokeWidth,
         }}
       />
-      {!tile.isMatched && ( // Only apply glossy effect if not matched, as white fill will obscure it
+      {!tile.isMatched && ( // Only apply glossy effect if not matched
         <polygon
           points={points}
           style={{ fill: `url(#${uniqueGlossyId})` }}
