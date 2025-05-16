@@ -101,17 +101,18 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
   const newGrid = JSON.parse(JSON.stringify(grid)) as GridData; 
   const numCellsInLine = lineCoords.length;
 
+  // Store a deep copy of the original tiles data *before* any modifications
   const originalTilesData: (Tile | null)[] = lineCoords.map(coord => {
-    const tile = grid[coord.r]?.[coord.c]; 
-    return tile ? {...tile} : null; 
+    const tile = grid[coord.r]?.[coord.c]; // Access original grid
+    return tile ? {...tile} : null; // Deep copy if tile exists
   });
 
-  for (let i = 0; i < numCellsInLine; i++) {
+  for (let i = 0; i < numCellsInLine; i++) { // Iterate through each cell in the line
     const targetCoord = lineCoords[i];
     let sourceTileIndex;
     let isNewlySpawned = false;
 
-    if (slideDirection === 'forward') {
+    if (slideDirection === 'forward') { 
       sourceTileIndex = (i - 1 + numCellsInLine) % numCellsInLine; 
       if (i === 0) isNewlySpawned = true; 
     } else { // 'backward'
@@ -132,19 +133,19 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
         isMatched: false,
       };
     } else {
-      const existingTileData = originalTilesData[sourceTileIndex]; 
+      const existingTileData = originalTilesData[sourceTileIndex]; // Use the stored original tile
       if (existingTileData) {
         tileToPlace = {
           ...existingTileData,
-          id: existingTileData.id, 
+          id: existingTileData.id, // Preserve ID
           row: targetCoord.r,    
           col: targetCoord.c,
-          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), 
+          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // Recalculate orientation based on new position
           isNew: false,          
           isMatched: false,
         };
       } else {
-        tileToPlace = null; 
+        tileToPlace = null; // If the source was null, keep it null
       }
     }
     newGrid[targetCoord.r][targetCoord.c] = tileToPlace;
@@ -349,7 +350,7 @@ export const checkGameOver = async (grid: GridData): Promise<boolean> => {
         if (checkedDiagonals.has(diagonalKey)) continue;
 
         const lineCoords = await getTilesOnDiagonal(grid, r_diag, c_diag, type);
-        if (lineCoords.length > 1) { 
+        if (lineCoords.length > 1) { // Only test if the diagonal line has tiles/cells
           checkedDiagonals.add(diagonalKey);
 
           const tempGridForward = JSON.parse(JSON.stringify(grid));
@@ -365,4 +366,6 @@ export const checkGameOver = async (grid: GridData): Promise<boolean> => {
   }
   return true;
 };
+    
+
     
