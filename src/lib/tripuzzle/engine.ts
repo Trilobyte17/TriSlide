@@ -38,7 +38,7 @@ export const addInitialTiles = async (grid: GridData): Promise<GridData> => {
   const { rows } = await getGridDimensions(newGrid);
 
   for (let r_add = 0; r_add < rows; r_add++) {
-    const numVisualTilesInThisRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; // Should be 11
+    const numVisualTilesInThisRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; 
 
     for (let c_add = 0; c_add < numVisualTilesInThisRow; c_add++) {
         newGrid[r_add][c_add] = {
@@ -71,18 +71,14 @@ const getNextCoordOnDiagonalPath = async (
 
     if (type === 'sum') { // '/' diagonal, moving towards bottom-left
       if (currentCellOrientation === 'up') {
-        // From UP, to connect along '/', next is DOWN at (r+1, c)
         nextR = currR + 1; nextC = currC; expectedNextOrientation = 'down';
       } else { // currentCellOrientation === 'down'
-        // From DOWN, to connect along '/', next is UP at (r, c-1)
         nextR = currR; nextC = currC - 1; expectedNextOrientation = 'up';
       }
     } else { // type === 'diff', '\' diagonal, moving towards bottom-right (experimental swap logic)
       if (currentCellOrientation === 'up') {
-        // From UP, to connect along '\', next is DOWN at (r+1, c)
         nextR = currR + 1; nextC = currC; expectedNextOrientation = 'down';
       } else { // currentCellOrientation === 'down'
-        // From DOWN, to connect along '\', next is UP at (r, c+1)
         nextR = currR; nextC = currC + 1; expectedNextOrientation = 'up';
       }
     }
@@ -106,22 +102,18 @@ const getPrevCoordOnDiagonalPath = async (
 
     if (type === 'sum') { // '/' diagonal, moving towards top-right
       if (currentCellOrientation === 'up') {
-        // From UP, to connect along '/' prev, is DOWN at (r, c+1)
         prevR = currR; prevC = currC + 1; expectedPrevOrientation = 'down';
       } else { // currentCellOrientation === 'down'
-        // From DOWN, to connect along '/' prev, is UP at (r-1, c)
         prevR = currR - 1; prevC = currC; expectedPrevOrientation = 'up';
       }
     } else { // type === 'diff', '\' diagonal, moving towards top-left (experimental swap logic)
       if (currentCellOrientation === 'up') {
-        // From UP, to connect along '\' prev, is DOWN at (r, c-1)
         prevR = currR; prevC = currC - 1; expectedPrevOrientation = 'down';
       } else { // currentCellOrientation === 'down'
-        // From DOWN, to connect along '\' prev, is UP at (r-1, c)
         prevR = currR - 1; prevC = currC; expectedPrevOrientation = 'up';
       }
     }
-
+    
     if (prevR >= 0 && prevR < numGridRows && prevC >= 0 && prevC < numVisualCols) {
         if (getExpectedOrientation(prevR, prevC) === expectedPrevOrientation) {
             return { r: prevR, c: prevC };
@@ -135,8 +127,8 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
   const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
   const lineCoords: {r: number, c: number}[] = [];
 
-  if (startR < 0 || startR >= numGridRows || startC < 0 || startC >= numVisualCols) {
-      return []; // Invalid start coordinate
+  if (startR < 0 || startR >= numGridRows || startC < 0 || startC >= numVisualCols || !grid[startR]?.[startC]) {
+      return []; // Invalid start coordinate or no tile at start
   }
   lineCoords.push({ r: startR, c: startC });
 
@@ -168,7 +160,6 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
     }
   }
   
-  // Ensure unique coordinates and sort
   const uniqueCoordsMap = new Map<string, {r: number, c: number}>();
   lineCoords.forEach(coord => uniqueCoordsMap.set(`${coord.r},${coord.c}`, coord));
   
@@ -231,7 +222,6 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
           isMatched: false, 
         };
       } else {
-        // If the source was null, the target should also be null unless it's a spawn point (handled above)
         tileToPlace = null; 
       }
     }
@@ -258,47 +248,39 @@ export const slideRow = async (grid: GridData, rowIndex: number, direction: 'lef
 
 // Baseline getNeighbors - identifies strict side-sharing neighbors
 export const getNeighbors = async (r: number, c: number, grid: GridData): Promise<{r: number, c: number}[]> => {
-  const currentTile = grid[r]?.[c];
-  if (!currentTile) return []; 
-
   const neighbors: {r: number, c: number}[] = [];
+  const currentTile = grid[r]?.[c];
+  if (!currentTile) return [];
+
+  const { rows: numRows } = await getGridDimensions(grid);
+  const numCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
   const currentCanonicalOrientation = getExpectedOrientation(r, c);
 
-  // Horizontal Left
-  if (c > 0) {
-      const neighborCoord = { r, c: c - 1 };
-      const neighborTile = grid[neighborCoord.r]?.[neighborCoord.c];
-      if (neighborTile && getExpectedOrientation(neighborCoord.r, neighborCoord.c) !== currentCanonicalOrientation) {
-          neighbors.push(neighborCoord);
+  // Potential neighbor relative coordinates and their required opposite orientation
+  const potentialNeighborsConfig = [
+    // Horizontal Left
+    { dr: 0, dc: -1, requiredOppositeOrientation: currentCanonicalOrientation === 'up' ? 'down' : 'up' },
+    // Horizontal Right
+    { dr: 0, dc: 1, requiredOppositeOrientation: currentCanonicalOrientation === 'up' ? 'down' : 'up' },
+    // Vertical (depends on current tile's orientation)
+    ...(currentCanonicalOrientation === 'up' ? 
+      [{ dr: -1, dc: 0, requiredOppositeOrientation: 'down' as 'down' }] : // Above (must be down)
+      [{ dr: 1, dc: 0, requiredOppositeOrientation: 'up' as 'up' }])     // Below (must be up)
+  ];
+
+  for (const config of potentialNeighborsConfig) {
+    const nr = r + config.dr;
+    const nc = c + config.dc;
+
+    if (nr >= 0 && nr < numRows && nc >= 0 && nc < numCols) {
+      const neighborTile = grid[nr]?.[nc];
+      if (neighborTile) {
+        const neighborCanonicalOrientation = getExpectedOrientation(nr, nc);
+        if (neighborCanonicalOrientation === config.requiredOppositeOrientation) {
+          neighbors.push({ r: nr, c: nc });
+        }
       }
-  }
-  // Horizontal Right
-  if (c < GAME_SETTINGS.VISUAL_TILES_PER_ROW - 1) {
-      const neighborCoord = { r, c: c + 1 };
-      const neighborTile = grid[neighborCoord.r]?.[neighborCoord.c];
-      if (neighborTile && getExpectedOrientation(neighborCoord.r, neighborCoord.c) !== currentCanonicalOrientation) {
-          neighbors.push(neighborCoord);
-      }
-  }
-  // Vertical
-  if (currentCanonicalOrientation === 'up') {
-      if (r > 0) {
-          const neighborCoord = { r: r - 1, c };
-          const neighborTile = grid[neighborCoord.r]?.[neighborCoord.c];
-          // For an UP tile at (r,c), its vertical side-sharing neighbor is (r-1,c) and MUST be DOWN
-          if (neighborTile && getExpectedOrientation(neighborCoord.r, neighborCoord.c) === 'down') {
-              neighbors.push(neighborCoord);
-          }
-      }
-  } else { // currentCanonicalOrientation === 'down'
-      if (r < GAME_SETTINGS.GRID_HEIGHT_TILES - 1) {
-          const neighborCoord = { r: r + 1, c };
-          const neighborTile = grid[neighborCoord.r]?.[neighborCoord.c];
-          // For a DOWN tile at (r,c), its vertical side-sharing neighbor is (r+1,c) and MUST be UP
-          if (neighborTile && getExpectedOrientation(neighborCoord.r, neighborCoord.c) === 'up') {
-              neighbors.push(neighborCoord);
-          }
-      }
+    }
   }
   return neighbors;
 };
@@ -310,15 +292,13 @@ export const findAndMarkMatches = async (grid: GridData): Promise<{ newGrid: Gri
 
   let hasMatches = false;
   let totalMatchedTilesThisCycle = 0;
-  const visitedOverall = new Set<string>(); // Stores "r,c" strings for all processed tiles globally in this call
+  const visitedOverall = new Set<string>(); 
 
   for (let r_start = 0; r_start < numRows; r_start++) {
     for (let c_start = 0; c_start < numCols; c_start++) {
       const startTileKey = `${r_start},${c_start}`;
       const startTile = newGrid[r_start]?.[c_start];
 
-      // Skip if no tile, or already part of a confirmed match from a previous component in *this* call, 
-      // or already explored as part of *any* component (matched or not) in *this* call.
       if (!startTile || startTile.isMatched || visitedOverall.has(startTileKey)) {
         continue;
       }
@@ -326,16 +306,24 @@ export const findAndMarkMatches = async (grid: GridData): Promise<{ newGrid: Gri
       const targetColor = startTile.color;
       const queue: {r: number, c: number}[] = [{r: r_start, c: c_start}];
       const componentCoords: {r: number, c: number}[] = [];
-      const visitedInThisComponentSearch = new Set<string>(); // Tiles visited/queued for *this specific* BFS
+      const visitedInThisComponentSearch = new Set<string>(); 
       
       visitedInThisComponentSearch.add(startTileKey);
+      // Do not add to componentCoords or visitedOverall here, do it when dequeuing
 
       while (queue.length > 0) {
         const currentPos = queue.shift()!;
+        
+        // Check if already processed by another part of THIS BFS or already part of a confirmed match
+        // This check wasn't robust enough. The `visitedInThisComponentSearch` handles cycles within current BFS.
+        // `visitedOverall` handles tiles already processed by *any* previous BFS.
+        // `isMatched` handles tiles already part of a *confirmed* match from a prior component in this same call.
+
+        const tileAtCurrentPos = newGrid[currentPos.r]?.[currentPos.c];
+        if(!tileAtCurrentPos || tileAtCurrentPos.color !== targetColor) continue; // Should not happen if enqueued correctly
+
         componentCoords.push(currentPos);
-        // Note: We add to visitedOverall LATER, after the whole component is explored.
-        // This allows a tile to be part of component A (not a match) and then later part of component B (is a match).
-        // The startTile check `visitedOverall.has(startTileKey)` prevents re-initiating BFS.
+        visitedOverall.add(`${currentPos.r},${currentPos.c}`); // Mark as explored globally
 
         const neighbors = await getNeighbors(currentPos.r, currentPos.c, newGrid);
 
@@ -344,31 +332,25 @@ export const findAndMarkMatches = async (grid: GridData): Promise<{ newGrid: Gri
           const neighborTile = newGrid[neighborPos.r]?.[neighborPos.c];
           
           if (neighborTile && neighborTile.color === targetColor && !visitedInThisComponentSearch.has(neighborKey) ) {
-            // Important: Only consider for BFS if it's same color and not already in this BFS path
-            // We don't check neighborTile.isMatched here, as a tile might be part of a component
-            // that ultimately forms a match, even if some of its neighbors were part of a *different*
-            // earlier match. The final marking step handles the `!tileToMark.isMatched` check.
             visitedInThisComponentSearch.add(neighborKey);
             queue.push(neighborPos);
           }
         }
       }
       
-      // After BFS for this component is complete, mark all tiles in this component as "globally" explored for this call.
-      visitedInThisComponentSearch.forEach(key => visitedOverall.add(key));
-
       if (componentCoords.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
-        hasMatches = true;
         let newlyMatchedInThisGroup = 0;
         componentCoords.forEach(posInMatch => {
           const tileToMark = newGrid[posInMatch.r]?.[posInMatch.c];
-          // Ensure we only count/mark tiles that aren't already part of another confirmed match in this cycle
           if (tileToMark && !tileToMark.isMatched) { 
-             tileToMark.isMatched = true;
+             tileToMark.isMatched = true; // This is where the highlight will come from
              newlyMatchedInThisGroup++;
           }
         });
-        totalMatchedTilesThisCycle += newlyMatchedInThisGroup;
+        if (newlyMatchedInThisGroup > 0) {
+            hasMatches = true;
+            totalMatchedTilesThisCycle += newlyMatchedInThisGroup;
+        }
       }
     }
   }
@@ -377,11 +359,20 @@ export const findAndMarkMatches = async (grid: GridData): Promise<{ newGrid: Gri
 
 
 export const removeMatchedTiles = async (grid: GridData): Promise<GridData> => {
-  return grid.map(row => row.map(tile => (tile && tile.isMatched ? null : tile)));
+  // DEBUG: Do not remove matched tiles, just return the grid to see highlights.
+  // Original line: return grid.map(row => row.map(tile => (tile && tile.isMatched ? null : tile)));
+  return grid; 
 };
 
 export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> => {
-  let newGrid = grid.map(row => row.map(t => t ? {...t, isNew: false, isMatched: false } : null));
+  let newGrid = grid.map(row => row.map(t => t ? {...t /* keep isMatched for debug */ } : null));
+  // For debug, we are not actually nulling tiles, so gravity won't "see" empty spaces
+  // unless we re-evaluate based on isMatched.
+  // For this debug step, let's assume gravity should fill based on where matched tiles *would have been*.
+  
+  const gridWithNullsForGravity = grid.map(row => row.map(tile => (tile && tile.isMatched ? null : (tile ? {...tile, isNew: false, isMatched: false} : null) )));
+  newGrid = gridWithNullsForGravity; // Use this for gravity calculation
+
   const { rows: numRows } = await getGridDimensions(newGrid);
   const numCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
@@ -405,6 +396,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
             col: c_grav,
             orientation: getExpectedOrientation(emptySlotR, c_grav), 
             isNew: false, 
+            isMatched: false, // Reset for fallen tile
           };
           newGrid[r_grav_fill][c_grav] = null; 
           emptySlotR--; 
@@ -414,6 +406,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
     }
   }
 
+  // Spawn pass: Fill remaining nulls from the top
   for (let r_spawn = 0; r_spawn < numRows; r_spawn++) {
     for (let c_spawn = 0; c_spawn < numCols; c_spawn++) {
       if (newGrid[r_spawn][c_spawn] === null) {
@@ -429,7 +422,41 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
       }
     }
   }
-  return newGrid;
+  // For debug, we want to show the original grid with highlights,
+  // but apply gravity logic as if tiles were removed.
+  // So, return the original grid with .isMatched flags set by findAndMarkMatches.
+  // The `newGrid` from above was just for gravity calculation.
+  // The grid passed to findAndMarkMatches is the one that needs its .isMatched flags updated.
+  // This is tricky. findAndMarkMatches ALREADY returns a newGrid with isMatched set.
+  // We should use *that* grid.
+  // Let's simplify. The grid state from findAndMarkMatches is what Tile.tsx sees.
+  // removeMatchedTiles returns it as is.
+  // applyGravityAndSpawn needs to calculate spawns based on where matches *would have* created nulls.
+
+  const finalGridToShowHighlightsButAllowSpawns = grid.map((row, r) => row.map((tile, c) => {
+    if (newGrid[r][c]) { // If a tile exists after gravity and spawn
+      if (tile && tile.isMatched) { // If original tile was matched
+        return { ...newGrid[r][c], isMatched: true, id: tile.id, color: tile.color, orientation: tile.orientation }; // Keep matched state, but use new tile's pos/new state
+      }
+      return newGrid[r][c]; // Non-matched tile that fell or new tile
+    }
+    return null;
+  }));
+  // This is getting too complex for a simple debug.
+  // Let's simplify the debug: `applyGravityAndSpawn` will just return the grid from `findAndMarkMatches`
+  // This means no new tiles will spawn during debug. This simplifies visual inspection of matches.
+  
+  // return grid; // Simplest debug: no gravity, no spawn if tiles are not removed.
+  
+  // Let's stick to: findAndMarkMatches marks. removeMatchedTiles does nothing. applyGravityAndSpawn operates on
+  // a hypothetical grid where matches WERE removed to calculate new spawns, then merges.
+  // This is complex. For this debug step:
+  // 1. findAndMarkMatches returns grid with isMatched=true.
+  // 2. removeMatchedTiles returns this grid.
+  // 3. applyGravityAndSpawn will ALSO just return this grid. This means no new tiles or falling.
+  // We are purely inspecting what `findAndMarkMatches` does.
+  
+  return grid; // In debug mode, just return the grid with .isMatched flags.
 };
 
 export const checkGameOver = async (grid: GridData): Promise<boolean> => {
@@ -460,7 +487,6 @@ export const checkGameOver = async (grid: GridData): Promise<boolean> => {
         const lineCoords = await getTilesOnDiagonal(grid, r_diag, c_diag, type);
         if (lineCoords.length < 1) continue; 
 
-        // Create a canonical key for the line to avoid re-checking
         const canonicalLineKey = lineCoords.map(lc => `${lc.r},${lc.c}`).sort().join('-');
         if (checkedDiagonals.has(canonicalLineKey)) continue;
         
@@ -480,5 +506,3 @@ export const checkGameOver = async (grid: GridData): Promise<boolean> => {
   }
   return true;
 };
-    
-    

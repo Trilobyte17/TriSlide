@@ -29,6 +29,9 @@ export function Tile({ tile }: TileProps) {
   const points = tile.orientation === 'up' ? upPoints : downPoints;
   const uniqueGlossyId = `glossy-${tile.id}`;
 
+  const borderStroke = tile.isMatched ? `hsl(var(--tile-active-border))` : `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
+  const borderStrokeWidth = tile.isMatched ? 3 : GAME_SETTINGS.TILE_BORDER_WIDTH;
+
   return (
     <svg
       id={`tile-${tile.id}`}
@@ -39,7 +42,7 @@ export function Tile({ tile }: TileProps) {
         "select-none transition-all duration-300 ease-out",
         "focus:outline-none", 
         tile.isNew && "animate-tile-spawn",
-        tile.isMatched && "animate-tile-vanish"
+        // tile.isMatched && "animate-tile-vanish" // Keep matched tiles visible for debug
       )}
       style={
         {
@@ -59,8 +62,8 @@ export function Tile({ tile }: TileProps) {
         points={points}
         style={{
           fill: tileStyle.backgroundColor,
-          stroke: `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`, 
-          strokeWidth: GAME_SETTINGS.TILE_BORDER_WIDTH,
+          stroke: borderStroke, 
+          strokeWidth: borderStrokeWidth,
         }}
       />
       <polygon
@@ -70,4 +73,3 @@ export function Tile({ tile }: TileProps) {
     </svg>
   );
 }
-
