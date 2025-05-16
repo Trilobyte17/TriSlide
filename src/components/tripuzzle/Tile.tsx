@@ -20,10 +20,19 @@ export function Tile({ tile }: TileProps) {
   const points = tile.orientation === 'up' ? upPoints : downPoints;
   const uniqueGlossyId = `glossy-${tile.id}`;
 
-  const borderStroke = tile.isMatched ? `hsl(var(--debug-match-border-color))` : `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
-  const borderStrokeWidth = tile.isMatched ? 3 : GAME_SETTINGS.TILE_BORDER_WIDTH;
-  const tileFilter = tile.isMatched ? 'brightness(1.75) saturate(1.5) drop-shadow(0 0 3px hsl(var(--debug-match-border-color)))' : 'none';
+  let tileFillColor = tileStyle.backgroundColor;
+  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
+  let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH;
+  let tileFilter = 'none'; // Default filter, no glow
 
+  if (tile.isMatched) {
+    tileFillColor = 'white'; // Bright white fill for matched tiles
+    currentBorderStroke = `hsl(var(--debug-match-border-color))`; // Use debug color for border
+    currentBorderStrokeWidth = 2.5; // Make border thicker for matched tiles
+    // Apply a more prominent glow using multiple drop shadows
+    const glowColor = `hsl(var(--debug-match-border-color))`;
+    tileFilter = `drop-shadow(0 0 3px ${glowColor}) drop-shadow(0 0 6px ${glowColor})`;
+  }
 
   return (
     <svg
@@ -35,12 +44,11 @@ export function Tile({ tile }: TileProps) {
         "select-none transition-all duration-300 ease-out",
         "focus:outline-none", 
         tile.isNew && "animate-tile-spawn",
-        // tile.isMatched remains visible due to debug mode in engine
       )}
       style={
         {
            pointerEvents: 'none',
-           filter: tileFilter, // Apply dynamic filter
+           filter: tileFilter, // Apply dynamic filter for glow
         }
       }
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
@@ -55,15 +63,17 @@ export function Tile({ tile }: TileProps) {
       <polygon
         points={points}
         style={{
-          fill: tileStyle.backgroundColor,
-          stroke: borderStroke, 
-          strokeWidth: borderStrokeWidth,
+          fill: tileFillColor, // Use dynamic fill color
+          stroke: currentBorderStroke, 
+          strokeWidth: currentBorderStrokeWidth,
         }}
       />
-      <polygon
-        points={points}
-        style={{ fill: `url(#${uniqueGlossyId})` }}
-      />
+      {!tile.isMatched && ( // Only apply glossy effect if not matched, as white fill will obscure it
+        <polygon
+          points={points}
+          style={{ fill: `url(#${uniqueGlossyId})` }}
+        />
+      )}
     </svg>
   );
 }
