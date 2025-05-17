@@ -6,7 +6,7 @@ import type { GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/typ
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { Tile } from './Tile';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
-import Image from 'next/image';
+import Image from 'next/image'; // Import next/image
 
 interface GridDisplayProps {
   gridData: GridData;
@@ -41,8 +41,8 @@ export function GridDisplay({
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
 
-  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES; // Should be 12
-  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; // Should be 11
+  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES; 
+  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; 
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const activeDragRef = useRef<ActiveDragState | null>(null);
@@ -56,18 +56,15 @@ export function GridDisplay({
 
   const gridRef = useRef<HTMLDivElement>(null);
 
-  // Calculate the mathematical width and height of the grid
-  const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2; // For 11 tiles, it's 6 * TILE_BASE_WIDTH
+  const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2; 
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
-  // Container size includes space for half of the border on all sides
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
   const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
 
   const getTilePosition = (r: number, c: number) => {
-    // No horizontal shift for odd rows in this layout (12 rows, 11 per row, no offset)
     const x = c * (TILE_BASE_WIDTH / 2);
     const y = r * TILE_HEIGHT;
     return {
@@ -104,8 +101,7 @@ export function GridDisplay({
     if (!currentDragState) return;
 
     if (event.type === 'touchmove' && event.cancelable) {
-      // Intentionally not calling event.preventDefault() unless specifically needed
-      // as it can interfere with page scrolling if drag starts near edges.
+      // Intentionally not preventing default unless absolutely necessary
     }
 
     const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
@@ -127,9 +123,20 @@ export function GridDisplay({
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) { 
           determinedAxis = 'row';
         } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { 
-          determinedAxis = 'sum'; 
-        } else { 
-          determinedAxis = 'diff'; 
+          // Sum might be / or \ depending on interpretation, let's assume / (up-left to down-right, more positive slope visually)
+          // A drag down-left (angle ~135) or up-right (angle ~-45) is 'sum'
+          // A drag down-right (angle ~45) or up-left (angle ~-135) is 'diff'
+           if ((angle > 30 && angle < 90)) { // down-right
+                determinedAxis = 'diff';
+           } else { // up-left
+                determinedAxis = 'diff';
+           }
+        } else { // 90 to 150 (-150 to -90)
+             if ((angle > 90 && angle < 150)) { // down-left
+                determinedAxis = 'sum';
+            } else { // up-right
+                determinedAxis = 'sum';
+            }
         }
         newDragAxisLocked = determinedAxis;
         
@@ -148,7 +155,7 @@ export function GridDisplay({
       if (newDragAxisLocked === 'row') {
         newVisualOffset = deltaX;
       } else {
-        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); 
+        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); // Approximate for screen
         newVisualOffset = deltaX * Math.cos(lineAngleRad) + deltaY * Math.sin(lineAngleRad);
       }
     }
@@ -191,7 +198,7 @@ export function GridDisplay({
       const numActualSteps = Math.abs(numStepsRaw);
       
       if (numActualSteps > 0) {
-        setTimeout(() => {
+        setTimeout(() => { // Defer to avoid React warning about updating parent during child render
             onSlideCommitRef.current(lineTypeToCommit, identifierToCommit, directionForEngine, numActualSteps);
         }, 0);
       }
@@ -253,7 +260,7 @@ export function GridDisplay({
         alt="Game board background"
         layout="fill"
         objectFit="cover"
-        className="z-20" 
+        className="z-0" 
         data-ai-hint="dark texture"
       />
       {gridData.map((row, rIndex) => {
@@ -356,3 +363,4 @@ export function GridDisplay({
     </div>
   );
 }
+
