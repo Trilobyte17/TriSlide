@@ -36,11 +36,12 @@ export default function TriSlidePage() {
   const [isProcessingMove, setIsProcessingMove] = useState(false);
 
   const processMatchesAndGravity = useCallback(async (currentGrid: GridData, initialScore: number): Promise<GameState> => {
+    setIsProcessingMove(true); // Moved here to ensure it's set at the start of any processing chain
     let score = initialScore;
-    let grid = currentGrid;
+    let grid = JSON.parse(JSON.stringify(currentGrid)); // Work on a mutable copy
     let madeChangesInLoop;
     let loopCount = 0;
-    const maxLoops = GAME_SETTINGS.GRID_HEIGHT_TILES * GAME_SETTINGS.VISUAL_TILES_PER_ROW * 2; // Increased maxLoops slightly
+    const maxLoops = GAME_SETTINGS.GRID_HEIGHT_TILES * GAME_SETTINGS.VISUAL_TILES_PER_ROW * 2;
 
     try {
       do {
@@ -58,13 +59,15 @@ export default function TriSlidePage() {
           madeChangesInLoop = true;
           score += matchCount * GAME_SETTINGS.SCORE_PER_MATCHED_TILE;
 
+          // Update state to show vanishing animation (if Tile.tsx handles it)
           setGameState(prev => ({ ...prev, grid: gridWithMatchesMarked, score, isLoading: false }));
           await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.MATCH_ANIMATION_DURATION));
 
           const gridAfterRemoval = await removeMatchedTiles(gridWithMatchesMarked);
           const gridAfterGravity = await applyGravityAndSpawn(gridAfterRemoval);
-          grid = gridAfterGravity;
+          grid = gridAfterGravity; // Update working grid
 
+          // Update state to show fallen/spawned tiles
           setGameState(prev => ({ ...prev, grid, score, isLoading: false }));
           await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SPAWN_ANIMATION_DURATION / 2)); 
         } else {
@@ -76,11 +79,22 @@ export default function TriSlidePage() {
       if (gameOver && !gameState.isGameOver) { 
          toast({ title: "Game Over!", description: `Final Score: ${score}`});
       }
-      return { ...gameState, grid: grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
+      // Return a new state object based on the final grid and score from this processing.
+      // Use the LATEST gameState for parts not modified here (like isGameStarted) to avoid staleness.
+      return { 
+        grid: grid, 
+        score: score, 
+        isGameOver: gameOver, 
+        isGameStarted: gameState.isGameStarted, // Preserve from current main state
+        isLoading: false 
+      };
     } finally {
-      // setIsProcessingMove(false) is handled by the caller
+       // This is crucial: setIsProcessingMove(false) should be called by the INITIATOR of the move,
+       // not within processMatchesAndGravity itself, as processMatchesAndGravity can be called recursively
+       // or as part of a larger chain.
+       // The caller (handleSlideCommit or createNewGame) will set it to false.
     }
-  }, [toast, gameState, setGameState]);
+  }, [toast, gameState.isGameStarted, setGameState]); // gameState.isGameStarted to satisfy linter, but be careful with other gameState fields
 
 
   const createNewGame = useCallback(async () => {
@@ -91,9 +105,7 @@ export default function TriSlidePage() {
     const finalInitialState = await processMatchesAndGravity(gridWithInitialTiles, 0);
 
     setGameState({
-      ...finalInitialState,
-      score: 0, 
-      isGameOver: false,
+      ...finalInitialState, // Contains grid, score (should be 0 from processing), isGameOver
       isGameStarted: true,
       isLoading: false,
     });
@@ -115,29 +127,32 @@ export default function TriSlidePage() {
            setShowRestorePrompt(true);
         } else {
           localStorage.removeItem(LOCAL_STORAGE_KEY);
-          createNewGame();
+          // createNewGame(); // Don't auto-start if saved state is invalid
+           setGameState(prev => ({...prev, isLoading: false, isGameStarted: false})); // Ready for user to start
         }
       } catch (error) {
         console.error("Failed to parse saved game state:", error);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
-        createNewGame();
+        // createNewGame();
+        setGameState(prev => ({...prev, isLoading: false, isGameStarted: false}));
       }
     } else {
-      createNewGame();
+      // createNewGame(); // Don't auto-start a new game on first load
+      setGameState(prev => ({...prev, isLoading: false, isGameStarted: false}));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []); // Removed createNewGame from deps to prevent auto-start on mount if no saved game
 
   const handleRestoreGame = (restore: boolean) => {
     setShowRestorePrompt(false);
-    setIsProcessingMove(true); 
     if (restore) {
        const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
        if (savedStateRaw) {
          try {
             const savedState = JSON.parse(savedStateRaw) as GameState;
             if (savedState.grid && savedState.grid.length > 0 && savedState.grid[0]?.length > 0) {
-                setGameState({...savedState, isLoading: true }); 
+                setIsProcessingMove(true); // Set before async operation
+                setGameState(currentState => ({...currentState, ...savedState, isLoading: true })); 
                 processMatchesAndGravity(savedState.grid, savedState.score).then(newStateFromProcessing => {
                   setGameState(currentState => ({
                     ...currentState, 
@@ -148,19 +163,19 @@ export default function TriSlidePage() {
                 }).finally(() => setIsProcessingMove(false));
             } else {
                 localStorage.removeItem(LOCAL_STORAGE_KEY);
-                createNewGame().finally(() => setIsProcessingMove(false)); 
+                createNewGame(); // This will set isProcessingMove
             }
          } catch (error) {
             console.error("Error parsing restored game state:", error);
             localStorage.removeItem(LOCAL_STORAGE_KEY);
-            createNewGame().finally(() => setIsProcessingMove(false));
+            createNewGame(); // This will set isProcessingMove
          }
        } else {
-           createNewGame().finally(() => setIsProcessingMove(false));
+           createNewGame(); // This will set isProcessingMove
        }
     } else {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
-      createNewGame().finally(() => setIsProcessingMove(false));
+      createNewGame(); // This will set isProcessingMove
     }
   };
 
@@ -179,18 +194,22 @@ export default function TriSlidePage() {
     directionForEngine: SlideDirection | ('left' | 'right'),
     numSteps: number
   ) => {
-    if (isProcessingMove || gameState.isGameOver) return;
-    if (numSteps === 0) return;
+    if (isProcessingMove || gameState.isGameOver || numSteps === 0) {
+        return;
+    }
 
     setIsProcessingMove(true);
-    let temporaryGrid = JSON.parse(JSON.stringify(gameState.grid)); // Deep copy for simulation
+    
+    // Create a deep copy of the current grid to simulate the slide(s) on.
+    let temporaryGrid = JSON.parse(JSON.stringify(gameState.grid)); 
     
     try {
+      // Perform all slide steps on the temporary grid
       for (let i = 0; i < numSteps; i++) {
         if (lineType === 'row' && typeof identifier === 'number') {
           temporaryGrid = await slideRow(temporaryGrid, identifier, directionForEngine as 'left' | 'right');
         } else if ((lineType === 'sum' || lineType === 'diff') && typeof identifier === 'object') {
-          const lineCoords = await getTilesOnDiagonal(temporaryGrid, identifier.r, identifier.c, lineType);
+          const lineCoords = await getTilesOnDiagonal(temporaryGrid, identifier.r, identifier.c, lineType); // Re-fetch on temp grid if needed, though usually static
           if (lineCoords.length > 0) {
             temporaryGrid = await slideLine(temporaryGrid, lineCoords, directionForEngine as SlideDirection);
           } else {
@@ -201,18 +220,22 @@ export default function TriSlidePage() {
         }
       }
 
-      // Check for matches on the temporary grid
-      const { hasMatches: initialSlideHasMatches } = await findAndMarkMatches(temporaryGrid);
+      // Check for matches on this temporary, fully slid grid
+      const { hasMatches: initialSlideHasMatches, newGrid: gridWithPotentialMatchesMarked } = await findAndMarkMatches(temporaryGrid);
 
       if (initialSlideHasMatches) {
-        // If matches, commit the slide and process
-        setGameState(prev => ({ ...prev, grid: temporaryGrid, isLoading: false })); // Show slid state with matches marked
-        const finalStateFromProcessing = await processMatchesAndGravity(temporaryGrid, gameState.score);
-        setGameState(prev => ({...prev, ...finalStateFromProcessing, isLoading: false}));
+        // If matches, commit the slide by updating the main game state with the slid grid (which now has isMatched flags).
+        // Then, let processMatchesAndGravity handle clearing, gravity, and cascades.
+        setGameState(prev => ({ ...prev, grid: gridWithPotentialMatchesMarked, isLoading: false }));
+        
+        // Pass the grid that has isMatched flags set correctly and the current score.
+        const finalStateFromProcessing = await processMatchesAndGravity(gridWithPotentialMatchesMarked, gameState.score);
+        setGameState(finalStateFromProcessing); // This will be the final state after all cascades
       } else {
-        // No match: temporaryGrid is discarded, main gameState.grid remains unchanged.
-        // Visual snap-back is handled by GridDisplay resetting its drag state.
-        // No explicit setGameState needed here as we don't want to commit the slide.
+        // No match on the temporary grid.
+        // DO NOTHING to gameState.grid. temporaryGrid is discarded.
+        // The visual snap-back is handled by GridDisplay not receiving new grid props,
+        // as its internal drag state resets.
       }
 
     } catch (error) {
@@ -259,7 +282,7 @@ export default function TriSlidePage() {
           </div>
         )}
 
-        {!gameState.isLoading && !showRestorePrompt && gameState.grid.length > 0 && (
+        {!gameState.isLoading && !showRestorePrompt && (gameState.grid.length > 0 || !gameState.isGameStarted) && (
           <>
             <GameControls
               score={gameState.score}
@@ -267,11 +290,17 @@ export default function TriSlidePage() {
               onRestart={createNewGame} 
               onNewGame={createNewGame} 
             />
-            <GridDisplay
-              gridData={gameState.grid}
-              isProcessingMove={isProcessingMove}
-              onSlideCommit={handleSlideCommit}
-            />
+            {gameState.isGameStarted && gameState.grid.length > 0 ? (
+              <GridDisplay
+                gridData={gameState.grid}
+                isProcessingMove={isProcessingMove}
+                onSlideCommit={handleSlideCommit}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64">
+                <p className="text-xl mb-4">Click "New Game" to begin!</p>
+              </div>
+            )}
             <GameOverDialog
               isOpen={gameState.isGameOver}
               score={gameState.score}
@@ -287,3 +316,5 @@ export default function TriSlidePage() {
     </>
   );
 }
+
+    
