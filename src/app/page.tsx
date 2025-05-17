@@ -21,7 +21,7 @@ import { GameOverDialog } from '@/components/tripuzzle/GameOverDialog';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 
-const LOCAL_STORAGE_KEY = 'triSlideGameState_v8_diagDrag_trism'; // Updated key for Trism layout
+const LOCAL_STORAGE_KEY = 'triSlideGameState_v9_final_layout'; 
 
 export default function TriSlidePage() {
   const { toast } = useToast();
@@ -40,8 +40,7 @@ export default function TriSlidePage() {
     let grid = currentGrid;
     let madeChangesInLoop;
     let loopCount = 0;
-    const maxLoops = GAME_SETTINGS.GRID_HEIGHT_TILES * GAME_SETTINGS.VISUAL_TILES_PER_ROW; 
-
+    const maxLoops = GAME_SETTINGS.GRID_HEIGHT_TILES * GAME_SETTINGS.VISUAL_TILES_PER_ROW * 2; // Increased maxLoops slightly
 
     try {
       do {
@@ -68,9 +67,8 @@ export default function TriSlidePage() {
 
           setGameState(prev => ({ ...prev, grid, score, isLoading: false }));
           await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SPAWN_ANIMATION_DURATION / 2)); 
-
         } else {
-          grid = gridWithMatchesMarked; 
+          grid = gridWithMatchesMarked; // Ensure grid reflects no new 'isNew' flags if no matches
         }
       } while (madeChangesInLoop);
 
@@ -80,14 +78,13 @@ export default function TriSlidePage() {
       }
       return { ...gameState, grid: grid, score, isGameOver: gameOver, isGameStarted: true, isLoading: false };
     } finally {
-      // setIsProcessingMove(false) is handled by the caller (handleSlideCommit or createNewGame)
+      // setIsProcessingMove(false) is handled by the caller
     }
   }, [toast, gameState, setGameState]);
 
 
   const createNewGame = useCallback(async () => {
     setIsProcessingMove(true);
-    // Initialize with data width for all rows
     const initialGridData = await initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES);
     let gridWithInitialTiles = await addInitialTiles(initialGridData);
     
@@ -117,7 +114,6 @@ export default function TriSlidePage() {
            setGameState({...savedState, isLoading: true}); 
            setShowRestorePrompt(true);
         } else {
-          console.warn("Invalid saved state structure. Starting new game.");
           localStorage.removeItem(LOCAL_STORAGE_KEY);
           createNewGame();
         }
@@ -184,15 +180,12 @@ export default function TriSlidePage() {
     numSteps: number
   ) => {
     if (isProcessingMove || gameState.isGameOver) return;
-
-    if (numSteps === 0) {
-        return;
-    }
+    if (numSteps === 0) return;
 
     setIsProcessingMove(true);
+    let temporaryGrid = JSON.parse(JSON.stringify(gameState.grid)); // Deep copy for simulation
+    
     try {
-      let temporaryGrid = JSON.parse(JSON.stringify(gameState.grid));
-      
       for (let i = 0; i < numSteps; i++) {
         if (lineType === 'row' && typeof identifier === 'number') {
           temporaryGrid = await slideRow(temporaryGrid, identifier, directionForEngine as 'left' | 'right');
@@ -208,21 +201,18 @@ export default function TriSlidePage() {
         }
       }
 
-      const { newGrid: gridWithPotentialMatches, hasMatches: initialSlideHasMatches } = await findAndMarkMatches(temporaryGrid);
+      // Check for matches on the temporary grid
+      const { hasMatches: initialSlideHasMatches } = await findAndMarkMatches(temporaryGrid);
 
       if (initialSlideHasMatches) {
-        setGameState(prev => ({ 
-            ...prev, 
-            grid: gridWithPotentialMatches, 
-            isLoading: false 
-        }));
-        
-        const finalStateFromProcessing = await processMatchesAndGravity(gridWithPotentialMatches, gameState.score);
+        // If matches, commit the slide and process
+        setGameState(prev => ({ ...prev, grid: temporaryGrid, isLoading: false })); // Show slid state with matches marked
+        const finalStateFromProcessing = await processMatchesAndGravity(temporaryGrid, gameState.score);
         setGameState(prev => ({...prev, ...finalStateFromProcessing, isLoading: false}));
-
       } else {
-        // No match: grid state remains unchanged from before this function call.
+        // No match: temporaryGrid is discarded, main gameState.grid remains unchanged.
         // Visual snap-back is handled by GridDisplay resetting its drag state.
+        // No explicit setGameState needed here as we don't want to commit the slide.
       }
 
     } catch (error) {
