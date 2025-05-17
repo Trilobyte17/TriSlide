@@ -6,7 +6,7 @@ import type { GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/typ
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { Tile } from './Tile';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
-import Image from 'next/image'; // Import next/image
+import Image from 'next/image';
 
 interface GridDisplayProps {
   gridData: GridData;
@@ -41,8 +41,8 @@ export function GridDisplay({
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
 
-  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
-  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
+  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES; // Should be 12
+  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; // Should be 11
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const activeDragRef = useRef<ActiveDragState | null>(null);
@@ -56,16 +56,19 @@ export function GridDisplay({
 
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2;
+  // Calculate the mathematical width and height of the grid
+  const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2; // For 11 tiles, it's 6 * TILE_BASE_WIDTH
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
+  // Container size includes space for half of the border on all sides
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
   const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
+
   const getTilePosition = (r: number, c: number) => {
-    let x = c * (TILE_BASE_WIDTH / 2);
-    // No horizontal offset for odd rows in this layout (12 rows, 11 per row, no offset)
+    // No horizontal shift for odd rows in this layout (12 rows, 11 per row, no offset)
+    const x = c * (TILE_BASE_WIDTH / 2);
     const y = r * TILE_HEIGHT;
     return {
       x: x + positionOffset,
@@ -101,7 +104,8 @@ export function GridDisplay({
     if (!currentDragState) return;
 
     if (event.type === 'touchmove' && event.cancelable) {
-      // event.preventDefault(); 
+      // Intentionally not calling event.preventDefault() unless specifically needed
+      // as it can interfere with page scrolling if drag starts near edges.
     }
 
     const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
@@ -123,23 +127,18 @@ export function GridDisplay({
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) { 
           determinedAxis = 'row';
         } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { 
-          // For a non-offset grid:
-          // Angle (30,90) is typically top-right to bottom-left drag -> type 'sum' ('/')
-          // Angle (-150,-90) is typically bottom-left to top-right drag -> type 'sum' ('/')
           determinedAxis = 'sum'; 
         } else { 
-          // Angle (90,150) is typically top-left to bottom-right drag -> type 'diff' ('\')
-          // Angle (-90, -30) is typically bottom-right to top-left drag -> type 'diff' ('\')
           determinedAxis = 'diff'; 
         }
         newDragAxisLocked = determinedAxis;
-
+        
         if (determinedAxis === 'row') {
             newDraggedLineCoords = [];
             for(let colIdx = 0; colIdx < visualTilesPerRow; colIdx++) {
                  newDraggedLineCoords.push({r: currentDragState.startTileR, c: colIdx});
             }
-        } else if (determinedAxis) { 
+        } else if (determinedAxis && gridDataRef.current) { 
             newDraggedLineCoords = await getTilesOnDiagonalEngine(gridDataRef.current, currentDragState.startTileR, currentDragState.startTileC, determinedAxis);
         }
       }
@@ -149,11 +148,7 @@ export function GridDisplay({
       if (newDragAxisLocked === 'row') {
         newVisualOffset = deltaX;
       } else {
-        // Project delta onto the approximate angle of the diagonal
-        // For 'sum' ('/'), angle is roughly 120 deg or -60 deg (150 or -30 for movement along it)
-        // For 'diff' ('\'), angle is roughly 60 deg or -120 deg (30 or -150 for movement along it)
-        // Approximate diagonal angles (visual, not data grid based)
-        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); // 120 deg for sum, 60 deg for diff
+        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); 
         newVisualOffset = deltaX * Math.cos(lineAngleRad) + deltaY * Math.sin(lineAngleRad);
       }
     }
@@ -171,15 +166,14 @@ export function GridDisplay({
 
   const handleDragEnd = useCallback(() => {
     const currentDragState = activeDragRef.current;
-    // Immediately reset activeDrag for responsiveness
     setActiveDrag(null); 
 
     if (currentDragState && currentDragState.dragAxisLocked && currentDragState.draggedLineCoords && currentDragState.draggedLineCoords.length >= 1) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset, draggedLineCoords } = currentDragState;
-
+      
       let effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.60; 
       if (dragAxisLocked === 'diff' || dragAxisLocked === 'sum') {
-         effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.45; // Diagonals shift by about half a tile width visually effectively
+         effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.45; 
       }
       
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
@@ -197,7 +191,6 @@ export function GridDisplay({
       const numActualSteps = Math.abs(numStepsRaw);
       
       if (numActualSteps > 0) {
-        // Defer commit to avoid React state update errors if onSlideCommit directly updates parent
         setTimeout(() => {
             onSlideCommitRef.current(lineTypeToCommit, identifierToCommit, directionForEngine, numActualSteps);
         }, 0);
@@ -209,7 +202,7 @@ export function GridDisplay({
     if (activeDrag) {
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
-      document.addEventListener('touchmove', handleDragMove, { passive: false }); // passive: false might be needed for some drag interactions
+      document.addEventListener('touchmove', handleDragMove, { passive: true }); 
       document.addEventListener('touchend', handleDragEnd);
       document.addEventListener('touchcancel', handleDragEnd);
     }
@@ -231,14 +224,10 @@ export function GridDisplay({
       if (lineCoordsLength === 0 || !axis) return { dx: 0, dy: 0 };
 
       if (axis === 'row') {
-          // Total width of a row of N visual tiles
           return { dx: visualTilesPerRow * (TILE_BASE_WIDTH / 2) + (TILE_BASE_WIDTH/2) , dy: 0 }; 
       } else { 
-          // For diagonals, effective displacement is more complex due to tessellation.
-          // Approximate using the number of tiles and an effective shift distance per tile.
-          // The TILE_BASE_WIDTH * 0.5 is a rough visual shift per tile along its axis.
-          const unitShiftDistance = TILE_BASE_WIDTH * 0.5; // Simplified shift along diagonal axis
-          const angleRad = axis === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); // Avg angles
+          const unitShiftDistance = TILE_BASE_WIDTH * 0.5; 
+          const angleRad = axis === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3);
           return {
               dx: lineCoordsLength * unitShiftDistance * Math.cos(angleRad),
               dy: lineCoordsLength * unitShiftDistance * Math.sin(angleRad)
@@ -249,7 +238,7 @@ export function GridDisplay({
 
   return (
     <div
-      className="relative rounded-lg shadow-inner select-none touch-none" // Removed bg-neutral-800
+      className="relative rounded-lg shadow-inner select-none touch-none"
       role="grid"
       aria-label="TriSlide game grid"
       style={{
@@ -260,11 +249,11 @@ export function GridDisplay({
       ref={gridRef}
     >
       <Image
-        src="https://placehold.co/240x420.png" // Placeholder image, adjust size as needed
+        src="https://placehold.co/240x420.png" 
         alt="Game board background"
         layout="fill"
         objectFit="cover"
-        className="z-0"
+        className="z-20" 
         data-ai-hint="dark texture"
       />
       {gridData.map((row, rIndex) => {
@@ -277,9 +266,8 @@ export function GridDisplay({
           if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && activeDrag.dragAxisLocked) {
             const lineCoords = activeDrag.draggedLineCoords;
             const lineDisplacement = getLineDisplacementVector(lineCoords.length, activeDrag.dragAxisLocked);
-            const wrapThresholdFactor = 0.3; // When to start showing wrapped tiles (30% of line length)
+            const wrapThresholdFactor = 0.3; 
             
-            // Calculate primary displacement based on visualOffset projected onto dragAxis
             let primaryDeltaX = 0, primaryDeltaY = 0;
             if (activeDrag.dragAxisLocked === 'row') {
               primaryDeltaX = activeDrag.visualOffset;
@@ -293,13 +281,11 @@ export function GridDisplay({
               { dx: primaryDeltaX, dy: primaryDeltaY, keySuffix: '-main', opacity: 1 }
             ];
 
-            // Add wrapped "ghost" tiles for carousel effect
             if (lineDisplacement.dx !== 0 || lineDisplacement.dy !== 0) {
-                // Threshold to show wrapped tile is when visualOffset exceeds a fraction of the line length
                 const visualOffsetMagnitude = Math.abs(activeDrag.visualOffset);
                 const lineLengthMagnitude = Math.sqrt(lineDisplacement.dx * lineDisplacement.dx + lineDisplacement.dy * lineDisplacement.dy);
                 
-                if (activeDrag.visualOffset > lineLengthMagnitude * wrapThresholdFactor) { // Dragged right/forward enough
+                if (activeDrag.visualOffset > lineLengthMagnitude * wrapThresholdFactor) { 
                   transformsToRender.push({
                     dx: primaryDeltaX - lineDisplacement.dx,
                     dy: primaryDeltaY - lineDisplacement.dy,
@@ -307,7 +293,7 @@ export function GridDisplay({
                     opacity: 1 
                   });
                 }
-                if (activeDrag.visualOffset < -lineLengthMagnitude * wrapThresholdFactor) { // Dragged left/backward enough
+                if (activeDrag.visualOffset < -lineLengthMagnitude * wrapThresholdFactor) { 
                   transformsToRender.push({
                     dx: primaryDeltaX + lineDisplacement.dx,
                     dy: primaryDeltaY + lineDisplacement.dy,
@@ -352,9 +338,8 @@ export function GridDisplay({
                   height: `${TILE_HEIGHT}px`,
                   transform: 'translate(0px,0px)', 
                   transition: (activeDrag === null && !isProcessingMove) ? `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out, opacity ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out` : 'none',
-                  zIndex: isProcessingMove && !activeDrag ? 5 : 1, // Ensure non-dragged are below dragged
+                  zIndex: isProcessingMove && !activeDrag ? 5 : 1, 
                   cursor: (activeDrag || isProcessingMove) ? 'default' : 'grab',
-                  // Dim non-dragged tiles slightly if a drag is active to highlight the dragged line
                   opacity: (activeDrag && activeDrag.draggedLineCoords && !activeDrag.draggedLineCoords.some(coord => coord.r === rIndex && coord.c === cIndex)) ? 0.7 : 1, 
                 }}
                 onMouseDown={(e) => handleDragStart(e, rIndex, cIndex)}
@@ -371,4 +356,3 @@ export function GridDisplay({
     </div>
   );
 }
-
