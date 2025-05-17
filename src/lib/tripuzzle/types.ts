@@ -33,9 +33,9 @@ const TARGET_TILE_BASE_WIDTH = 40;
 const PRECISE_TILE_HEIGHT = (Math.sqrt(3) / 2) * TARGET_TILE_BASE_WIDTH;
 
 export const GAME_SETTINGS = {
-  GRID_WIDTH_TILES: 11, // Data array width, matches visual width
-  GRID_HEIGHT_TILES: 12, // Number of rows
-  VISUAL_TILES_PER_ROW: 11, // Visual tiles in ALL rows
+  GRID_WIDTH_TILES: 6, // Data array width, for the widest row (even rows)
+  GRID_HEIGHT_TILES: 11, // Number of rows
+  VISUAL_TILES_PER_ROW: 6, // Visual tiles in WIDEST rows (even rows)
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const,
   SCORE_PER_MATCHED_TILE: 10,
@@ -64,4 +64,13 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
 };
+
+// This function is now defined in engine.ts
+// export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
+//   if (r % 2 === 0) { // Even rows (0, 2, ... 6 tiles)
+//     return c % 2 === 0 ? 'up' : 'down';
+//   } else { // Odd rows (1, 3, ... 5 tiles, effectively shifted)
+//     return c % 2 === 0 ? 'down' : 'up';
+//   }
+// };
 
