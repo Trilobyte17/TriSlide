@@ -186,11 +186,11 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
     let tileToPlace: Tile | null;
     if (isNewlySpawned) {
       let virtualCol: number;
-      // For row slides (left/right), handle the virtual column based on slide direction
+      // For row slides (left/right), use the actual target column
       if (lineCoords.every(coord => coord.r === lineCoords[0].r)) {
-        virtualCol = slideDirection === 'forward' ? -1 : visualTilesPerRow;
+        virtualCol = targetCoord.c;
       } else {
-        // For diagonal slides
+        // For diagonal slides, use virtual column
         virtualCol = slideDirection === 'forward' ? -1 : numCellsInLine;
       }
       tileToPlace = {
