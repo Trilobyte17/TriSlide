@@ -1,0 +1,25 @@
+Error: ./src/components/tripuzzle/GridDisplay.tsx:7:1
+Export [32mgetExpectedOrientation[39m doesn't exist in target module
+[0m [90m  5 |[39m [36mimport[39m type { [33mGridData[39m[33m,[39m [33mDiagonalType[39m[33m,[39m [33mSlideDirection[39m } [36mfrom[39m [32m'@/lib/tripuzzle/types'[39m[33m;[39m[0m
+[0m [90m  6 |[39m [36mimport[39m { [33mGAME_SETTINGS[39m } [36mfrom[39m [32m'@/lib/tripuzzle/types'[39m[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m  7 |[39m [36mimport[39m { getExpectedOrientation } [36mfrom[39m [32m'@/lib/tripuzzle/engine'[39m[33m;[39m[0m
+[0m [90m    |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[0m
+[0m [90m  8 |[39m [36mimport[39m { [33mTile[39m } [36mfrom[39m [32m'./Tile'[39m[33m;[39m[0m
+[0m [90m  9 |[39m [36mimport[39m { getTilesOnDiagonal [36mas[39m getTilesOnDiagonalEngine } [36mfrom[39m [32m'@/lib/tripuzzle/engine'[39m[33m;[39m[0m
+[0m [90m 10 |[39m [36mimport[39m [33mImage[39m [36mfrom[39m [32m'next/image'[39m[33m;[39m [90m// Import next/image[39m[0m
+
+The export [32mgetExpectedOrientation[39m was not found in module [1m[31m[project]/src/lib/tripuzzle/engine.ts [app-client] (ecmascript) <exports>[39m[22m.
+Did you mean to import [32mgetGridDimensions[39m?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+    at BuildError (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/%5Broot-of-the-server%5D__e2c08166._.js:17395:41)
+    at renderWithHooks (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:13260:28)
+    at updateFunctionComponent (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:16755:32)
+    at beginWork (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:18388:32)
+    at beginWork$1 (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:23101:28)
+    at performUnitOfWork (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22402:24)
+    at workLoopSync (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22331:17)
+    at renderRootSync (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:22308:21)
+    at performConcurrentWorkOnRoot (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_react-dom_cjs_react-dom_development_ab7e073c.js:21732:84)
+    at workLoop (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_3bfdc6a4._.js:291:48)
+    at flushWork (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_3bfdc6a4._.js:270:28)
+    at MessagePort.performWorkUntilDeadline (https://8e431cad-2ef9-4d90-94f2-928fba228eec-00-io1892lwb3oh.kirk.replit.dev/_next/static/chunks/node_modules_3bfdc6a4._.js:498:35)
