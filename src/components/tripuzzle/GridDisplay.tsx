@@ -297,7 +297,7 @@ export function GridDisplay({
                 const virtualColOffset = activeDrag.dragAxisLocked === 'row' ? tilesInLine * 2 : 0;
                 
                 if (activeDrag.visualOffset > 0) { 
-                  const virtualPos = getTilePosition(r, c, c - virtualColOffset);
+                  const virtualPos = getTilePosition(rIndex, cIndex, cIndex - virtualColOffset);
                   transformsToRender.push({
                     dx: primaryDeltaX - lineDisplacement.dx,
                     dy: primaryDeltaY - lineDisplacement.dy,
@@ -307,7 +307,7 @@ export function GridDisplay({
                   });
                 }
                 if (activeDrag.visualOffset < 0) { 
-                  const virtualPos = getTilePosition(r, c, c + virtualColOffset);
+                  const virtualPos = getTilePosition(rIndex, cIndex, cIndex + virtualColOffset);
                   transformsToRender.push({
                     dx: primaryDeltaX + lineDisplacement.dx,
                     dy: primaryDeltaY + lineDisplacement.dy,
