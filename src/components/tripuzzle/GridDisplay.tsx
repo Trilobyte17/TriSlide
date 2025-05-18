@@ -294,10 +294,10 @@ export function GridDisplay({
 
             if (lineDisplacement.dx !== 0 || lineDisplacement.dy !== 0) {
                 const tilesInLine = lineCoords.length;
-                const virtualColOffset = activeDrag.dragAxisLocked === 'row' ? tilesInLine * 2 : 0;
+                const virtualColOffset = activeDrag.dragAxisLocked === 'row' ? tilesInLine : 0;
                 
                 if (activeDrag.visualOffset > 0) { 
-                  const virtualPos = getTilePosition(rIndex, cIndex, cIndex - virtualColOffset);
+                  const virtualPos = getTilePosition(rIndex, cIndex - virtualColOffset);
                   transformsToRender.push({
                     dx: primaryDeltaX - lineDisplacement.dx,
                     dy: primaryDeltaY - lineDisplacement.dy,
@@ -307,7 +307,7 @@ export function GridDisplay({
                   });
                 }
                 if (activeDrag.visualOffset < 0) { 
-                  const virtualPos = getTilePosition(rIndex, cIndex, cIndex + virtualColOffset);
+                  const virtualPos = getTilePosition(rIndex, cIndex + virtualColOffset);
                   transformsToRender.push({
                     dx: primaryDeltaX + lineDisplacement.dx,
                     dy: primaryDeltaY + lineDisplacement.dy,
