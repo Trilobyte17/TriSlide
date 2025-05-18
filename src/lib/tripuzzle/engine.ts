@@ -190,7 +190,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, virtualCol),
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: true,
         isMatched: false,
       };
