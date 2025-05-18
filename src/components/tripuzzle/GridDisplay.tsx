@@ -64,12 +64,15 @@ export function GridDisplay({
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
 
-  const getTilePosition = (r: number, c: number) => {
-    const x = c * (TILE_BASE_WIDTH / 2);
+  const getTilePosition = (r: number, c: number, virtualCol?: number) => {
+    // virtualCol allows for correct positioning of wrapped tiles
+    const effectiveCol = virtualCol !== undefined ? virtualCol : c;
+    const x = effectiveCol * (TILE_BASE_WIDTH / 2);
     const y = r * TILE_HEIGHT;
     return {
       x: x + positionOffset,
-      y: y + positionOffset
+      y: y + positionOffset,
+      orientation: getExpectedOrientation(r, effectiveCol)
     };
   };
 
@@ -289,23 +292,27 @@ export function GridDisplay({
             ];
 
             if (lineDisplacement.dx !== 0 || lineDisplacement.dy !== 0) {
-                const visualOffsetMagnitude = Math.abs(activeDrag.visualOffset);
-                const lineLengthMagnitude = Math.sqrt(lineDisplacement.dx * lineDisplacement.dx + lineDisplacement.dy * lineDisplacement.dy);
+                const tilesInLine = lineCoords.length;
+                const virtualColOffset = activeDrag.dragAxisLocked === 'row' ? tilesInLine * 2 : 0;
                 
-                if (activeDrag.visualOffset > lineLengthMagnitude * wrapThresholdFactor) { 
+                if (activeDrag.visualOffset > 0) { 
+                  const virtualPos = getTilePosition(r, c, c - virtualColOffset);
                   transformsToRender.push({
                     dx: primaryDeltaX - lineDisplacement.dx,
                     dy: primaryDeltaY - lineDisplacement.dy,
                     keySuffix: '-wrap-past',
-                    opacity: 1 
+                    opacity: 1,
+                    orientation: virtualPos.orientation
                   });
                 }
-                if (activeDrag.visualOffset < -lineLengthMagnitude * wrapThresholdFactor) { 
+                if (activeDrag.visualOffset < 0) { 
+                  const virtualPos = getTilePosition(r, c, c + virtualColOffset);
                   transformsToRender.push({
                     dx: primaryDeltaX + lineDisplacement.dx,
                     dy: primaryDeltaY + lineDisplacement.dy,
                     keySuffix: '-wrap-future',
-                    opacity: 1
+                    opacity: 1,
+                    orientation: virtualPos.orientation
                   });
                 }
             }
