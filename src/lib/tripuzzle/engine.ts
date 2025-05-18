@@ -185,12 +185,13 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
     
     let tileToPlace: Tile | null;
     if (isNewlySpawned) {
+      const virtualCol = slideDirection === 'forward' ? -1 : numCellsInLine;
       tileToPlace = {
         id: generateUniqueId(),
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
+        orientation: getExpectedOrientation(targetCoord.r, virtualCol),
         isNew: true,
         isMatched: false,
       };
