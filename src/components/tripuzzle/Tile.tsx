@@ -21,30 +21,17 @@ export function Tile({ tile }: TileProps) {
   const uniqueGlossyId = `glossy-${tile.id}`;
 
   let tileFillColor = tileStyle.backgroundColor;
-  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`; // Default black border
-  let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH; // Default 1px
+  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
+  let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH;
   let tileClassName = "";
-  let tileInlineStyle: React.CSSProperties = { pointerEvents: 'none' }; // Keep pointer events off for the SVG itself
+  let tileInlineStyle: React.CSSProperties = { pointerEvents: 'none' };
 
   if (tile.isMatched) {
-    // When matched, apply vanishing animation
     tileClassName = "animate-tile-vanish";
   } else if (tile.isNew) {
-    // When new, apply spawn animation
-    tileClassName = "animate-tile-spawn";
+    // tileClassName = "animate-tile-spawn"; // DIAGNOSTIC: Temporarily disable animation class
+    tileInlineStyle.opacity = 1; // DIAGNOSTIC: Force opacity for new tiles
   }
-  
-  // Debug highlight for matches (no longer active in normal gameplay)
-  // This section was for debugging and should be removed or conditional for production.
-  // For now, we assume normal gameplay styling.
-  // if (tile.isMatched) {
-  //   tileFillColor = tileStyle.backgroundColor; // Keep original color
-  //   currentBorderStroke = `hsl(0 0% 0%)`; // Thick black border for debug
-  //   currentBorderStrokeWidth = 3;
-  //   // tileInlineStyle.filter = `brightness(1.2) drop-shadow(0 0 3px hsl(0 0% 0%))`; // Example filter
-  //   // No glossy effect for matched debug tiles
-  // }
-
 
   return (
     <svg
@@ -55,7 +42,7 @@ export function Tile({ tile }: TileProps) {
       className={cn(
         "select-none transition-all duration-300 ease-out", // Basic transition, can be overridden by specific animations
         "focus:outline-none",
-        tileClassName // Apply spawn or vanish animations
+        tileClassName
       )}
       style={tileInlineStyle}
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
