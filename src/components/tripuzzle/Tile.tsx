@@ -21,22 +21,29 @@ export function Tile({ tile }: TileProps) {
   const uniqueGlossyId = `glossy-${tile.id}`;
 
   let tileFillColor = tileStyle.backgroundColor;
-  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
-  let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH;
+  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`; // Default black border
+  let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH; // Default 1px
   let tileClassName = "";
-  let tileInlineStyle: React.CSSProperties = { pointerEvents: 'none' };
-
+  let tileInlineStyle: React.CSSProperties = { pointerEvents: 'none' }; // Keep pointer events off for the SVG itself
 
   if (tile.isMatched) {
+    // When matched, apply vanishing animation
     tileClassName = "animate-tile-vanish";
-    // If debug mode for matching was on and used black borders:
-    // tileFillColor = tileStyle.backgroundColor; // Keep original color
-    // currentBorderStroke = `hsl(0 0% 0%)`; // Thick black border
-    // currentBorderStrokeWidth = 3;
   } else if (tile.isNew) {
-    // tileClassName = "animate-tile-spawn"; // DEBUG: Temporarily disable spawn animation
-    tileInlineStyle.opacity = 1; // DEBUG: Force opacity to 1 for new tiles
+    // When new, apply spawn animation
+    tileClassName = "animate-tile-spawn";
   }
+  
+  // Debug highlight for matches (no longer active in normal gameplay)
+  // This section was for debugging and should be removed or conditional for production.
+  // For now, we assume normal gameplay styling.
+  // if (tile.isMatched) {
+  //   tileFillColor = tileStyle.backgroundColor; // Keep original color
+  //   currentBorderStroke = `hsl(0 0% 0%)`; // Thick black border for debug
+  //   currentBorderStrokeWidth = 3;
+  //   // tileInlineStyle.filter = `brightness(1.2) drop-shadow(0 0 3px hsl(0 0% 0%))`; // Example filter
+  //   // No glossy effect for matched debug tiles
+  // }
 
 
   return (
@@ -46,9 +53,9 @@ export function Tile({ tile }: TileProps) {
       height={SVG_HEIGHT}
       viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
       className={cn(
-        "select-none transition-all duration-300 ease-out",
+        "select-none transition-all duration-300 ease-out", // Basic transition, can be overridden by specific animations
         "focus:outline-none",
-        tileClassName
+        tileClassName // Apply spawn or vanish animations
       )}
       style={tileInlineStyle}
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
@@ -68,7 +75,7 @@ export function Tile({ tile }: TileProps) {
           strokeWidth: currentBorderStrokeWidth,
         }}
       />
-      {/* Only apply glossy effect if not matched and not vanishing */}
+      {/* Only apply glossy effect if not matched (i.e., not vanishing) */}
       {!tile.isMatched && (
         <polygon
           points={points}
