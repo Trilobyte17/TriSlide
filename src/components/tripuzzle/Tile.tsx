@@ -21,18 +21,21 @@ export function Tile({ tile }: TileProps) {
   const uniqueGlossyId = `glossy-${tile.id}`;
 
   let tileFillColor = tileStyle.backgroundColor;
-  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`; 
+  let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
   let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH;
   let tileClassName = "";
+  let tileInlineStyle: React.CSSProperties = { pointerEvents: 'none' };
+
 
   if (tile.isMatched) {
-    // Highlight matched tiles with thick black border while keeping original color
-    currentBorderStroke = "black";
-    currentBorderStrokeWidth = 4;
-    // Use special highlighting class to prevent vanish animation
-    tileClassName = "tile-matched-highlighting";
+    tileClassName = "animate-tile-vanish";
+    // If debug mode for matching was on and used black borders:
+    // tileFillColor = tileStyle.backgroundColor; // Keep original color
+    // currentBorderStroke = `hsl(0 0% 0%)`; // Thick black border
+    // currentBorderStrokeWidth = 3;
   } else if (tile.isNew) {
-    tileClassName = "animate-tile-spawn";
+    // tileClassName = "animate-tile-spawn"; // DEBUG: Temporarily disable spawn animation
+    tileInlineStyle.opacity = 1; // DEBUG: Force opacity to 1 for new tiles
   }
 
 
@@ -44,14 +47,10 @@ export function Tile({ tile }: TileProps) {
       viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
       className={cn(
         "select-none transition-all duration-300 ease-out",
-        "focus:outline-none", 
+        "focus:outline-none",
         tileClassName
       )}
-      style={
-        {
-           pointerEvents: 'none',
-        }
-      }
+      style={tileInlineStyle}
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
     >
       <defs>
@@ -65,7 +64,7 @@ export function Tile({ tile }: TileProps) {
         points={points}
         style={{
           fill: tileFillColor,
-          stroke: currentBorderStroke, 
+          stroke: currentBorderStroke,
           strokeWidth: currentBorderStrokeWidth,
         }}
       />
