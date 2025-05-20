@@ -42,8 +42,8 @@ export function GridDisplay({
   const TILE_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
   const TILE_BORDER_WIDTH = GAME_SETTINGS.TILE_BORDER_WIDTH;
 
-  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES; // Should be 12
-  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW; // Should be 11
+  const numGridRows = GAME_SETTINGS.GRID_HEIGHT_TILES;
+  const visualTilesPerRow = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
   const [activeDrag, setActiveDrag] = useState<ActiveDragState | null>(null);
   const activeDragRef = useRef<ActiveDragState | null>(null);
@@ -57,6 +57,8 @@ export function GridDisplay({
   
   const gridRef = useRef<HTMLDivElement>(null);
 
+  // For a 12x11 grid (no horizontal offsets), max visual width is 11 tiles.
+  // Width of N tessellating triangles: (N+1)/2 * BaseWidth
   const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2;
   const mathGridHeight = numGridRows * TILE_HEIGHT;
 
@@ -98,7 +100,7 @@ export function GridDisplay({
 
   const handleDragMove = useCallback(async (event: MouseEvent | TouchEvent) => {
     const currentDragState = activeDragRef.current;
-    if (!currentDragState) return;
+    if (!currentDragState || !gridDataRef.current) return; // Added gridDataRef.current check
 
     const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
     const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
@@ -118,13 +120,13 @@ export function GridDisplay({
 
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
           determinedAxis = 'row';
-        } else if (angle > 30 && angle < 90) {
+        } else if (angle > 30 && angle < 90) { // Corresponds to \ moving SE or NW for 'diff'
           determinedAxis = 'diff'; 
-        } else if (angle > 90 && angle < 150) {
+        } else if (angle > 90 && angle < 150) { // Corresponds to / moving SW or NE for 'sum'
           determinedAxis = 'sum'; 
-        } else if (angle < -30 && angle > -90) {
+        } else if (angle < -30 && angle > -90) { // Corresponds to / moving NE or SW for 'sum'
           determinedAxis = 'sum'; 
-        } else if (angle < -90 && angle > -150) {
+        } else if (angle < -90 && angle > -150) { // Corresponds to \ moving NW or SE for 'diff'
           determinedAxis = 'diff'; 
         }
         newDragAxisLocked = determinedAxis;
@@ -132,9 +134,10 @@ export function GridDisplay({
         if (determinedAxis === 'row') {
             newDraggedLineCoords = [];
             for(let colIdx = 0; colIdx < visualTilesPerRow; colIdx++) {
+                 // Collect all cells, including nulls, for the row
                  newDraggedLineCoords.push({r: currentDragState.startTileR, c: colIdx});
             }
-        } else if (determinedAxis && gridDataRef.current) {
+        } else if (determinedAxis && gridDataRef.current) { // Ensure gridDataRef.current is valid
             newDraggedLineCoords = await getTilesOnDiagonalEngine(gridDataRef.current, currentDragState.startTileR, currentDragState.startTileC, determinedAxis);
         }
       }
@@ -143,7 +146,7 @@ export function GridDisplay({
     if (newDragAxisLocked && newDraggedLineCoords) {
       if (newDragAxisLocked === 'row') {
         newVisualOffset = deltaX;
-      } else {
+      } else { 
         // Project deltaX, deltaY onto the drag axis direction
         const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); // Approx angles for / and \
         newVisualOffset = deltaX * Math.cos(lineAngleRad) + deltaY * Math.sin(lineAngleRad);
@@ -164,7 +167,6 @@ export function GridDisplay({
   const handleDragEnd = useCallback(() => {
     const currentDragState = activeDragRef.current;
     
-    // Store necessary info before resetting activeDrag
     const commitParams = currentDragState && currentDragState.dragAxisLocked && currentDragState.draggedLineCoords && currentDragState.draggedLineCoords.length >= 1
       ? {
           dragAxisLocked: currentDragState.dragAxisLocked,
@@ -175,14 +177,14 @@ export function GridDisplay({
         }
       : null;
 
-    setActiveDrag(null); // Update child state first
+    setActiveDrag(null); 
 
     if (commitParams) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset, draggedLineCoords } = commitParams;
 
-      let effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.60; 
+      let effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.75; // For snapping
       if (dragAxisLocked === 'diff' || dragAxisLocked === 'sum') {
-         effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.45; 
+         effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.6; // Diagonals might need a smaller shift unit due to projection
       }
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
@@ -190,6 +192,8 @@ export function GridDisplay({
       
       if (numActualSteps > 0) {
         const lineTypeToCommit = dragAxisLocked;
+        // For diagonals, the identifier is based on the start tile of the drag.
+        // For rows, it's just the row index.
         const identifierToCommit = dragAxisLocked === 'row' ? startTileR : { r: startTileR, c: startTileC };
         let directionForEngine: SlideDirection | ('left' | 'right');
 
@@ -210,7 +214,7 @@ export function GridDisplay({
     if (activeDrag) {
       document.addEventListener('mousemove', handleDragMove);
       document.addEventListener('mouseup', handleDragEnd);
-      document.addEventListener('touchmove', handleDragMove, { passive: true });
+      document.addEventListener('touchmove', handleDragMove, { passive: true }); // passive for touchmove
       document.addEventListener('touchend', handleDragEnd);
       document.addEventListener('touchcancel', handleDragEnd);
     }
@@ -232,16 +236,17 @@ export function GridDisplay({
       if (numElementsInLine === 0 || !axis) return { dx: 0, dy: 0 };
 
       if (axis === 'row') {
-          // For 11 tiles, N=11. (11+1)/2 * W = 6W. This is the correct span.
+          // Width of N tessellating triangles: (N+1)/2 * BaseWidth
           const displacementX = (numElementsInLine + 1) * (TILE_BASE_WIDTH / 2);
           return { dx: displacementX , dy: 0 };
       } else { 
-          // Reduced effectiveStepDistance for diagonals to make line displacement smaller
-          const effectiveStepDistance = TILE_BASE_WIDTH * 0.60; // Adjusted from 0.85, was 0.7
-          const angleRad = axis === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); 
+          // For diagonals, the displacement is more complex.
+          // Use TILE_BASE_WIDTH as the fundamental "length" contribution of each tile along the diagonal.
+          const displacementMagnitude = numElementsInLine * TILE_BASE_WIDTH;
+          const angleRad = axis === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); // Approx angles for / and \
           return {
-              dx: numElementsInLine * effectiveStepDistance * Math.cos(angleRad),
-              dy: numElementsInLine * effectiveStepDistance * Math.sin(angleRad)
+              dx: displacementMagnitude * Math.cos(angleRad),
+              dy: displacementMagnitude * Math.sin(angleRad)
           };
       }
   };
@@ -290,7 +295,7 @@ export function GridDisplay({
             
             const wrapDisplayThreshold = TILE_BASE_WIDTH / 2.5; 
 
-            if (lineDisplacement.dx !== 0 || lineDisplacement.dy !== 0) {
+            if (lineDisplacement.dx !== 0 || lineDisplacement.dy !== 0) { // Only add wraps if displacement is non-zero
                 if (activeDrag.visualOffset > wrapDisplayThreshold) {
                   transformsToRender.push({
                     dx: primaryDeltaX - lineDisplacement.dx,
@@ -309,11 +314,13 @@ export function GridDisplay({
                 }
             }
             
-            const fragmentKey = tileData ? tileData.id : `${rIndex}-${cIndex}-dragcell`;
+            // Use rIndex, cIndex for key if tileData is null (empty cell in dragged line)
+            const fragmentKey = tileData ? tileData.id : `${rIndex}-${cIndex}-dragcell-${activeDrag.dragAxisLocked}`;
 
             return (
               <React.Fragment key={fragmentKey}>
                 {transformsToRender.map(transform => (
+                  // Only render the tile component if tileData exists for this original cell
                   tileData ? 
                   <div
                     key={tileData.id + transform.keySuffix}
@@ -332,12 +339,12 @@ export function GridDisplay({
                   >
                     <Tile tile={tileData} />
                   </div>
-                  : null 
+                  : null // Do not render anything if the original cell in draggedLineCoords was empty
                 ))}
               </React.Fragment>
             );
           } else { 
-            if (!tileData) return null; 
+            if (!tileData) return null; // Don't render anything for null tiles not part of drag
             return (
               <div
                 key={tileData.id}
@@ -347,7 +354,7 @@ export function GridDisplay({
                   top: `${baseY}px`,
                   width: `${TILE_BASE_WIDTH}px`,
                   height: `${TILE_HEIGHT}px`,
-                  transform: 'translate(0px,0px)',
+                  transform: 'translate(0px,0px)', // Default transform
                   transition: (activeDrag === null && !isProcessingMove) ? `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out, opacity ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out` : 'none',
                   zIndex: isProcessingMove && !activeDrag ? 5 : 1, 
                   cursor: (activeDrag || isProcessingMove) ? 'default' : 'grab',
