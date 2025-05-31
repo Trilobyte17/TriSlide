@@ -29,7 +29,8 @@ export function Tile({ tile }: TileProps) {
     // Highlight matched tiles with thick black border while keeping original color
     currentBorderStroke = "black";
     currentBorderStrokeWidth = 4;
-    // Don't apply vanish animation during highlighting - it will be applied during removal
+    // Use special highlighting class to prevent vanish animation
+    tileClassName = "tile-matched-highlighting";
   } else if (tile.isNew) {
     tileClassName = "animate-tile-spawn";
   }

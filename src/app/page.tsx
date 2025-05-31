@@ -67,6 +67,10 @@ export default function TriSlidePage() {
         setGameState(prev => ({ ...prev, grid: gridWithMatchesMarked, score, isLoading: false }));
         await new Promise(resolve => setTimeout(resolve, 2000));
 
+        // Apply vanish animation by updating the grid state first, then remove after animation
+        setGameState(prev => ({ ...prev, grid: gridWithMatchesMarked, score, isLoading: false }));
+        await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.MATCH_ANIMATION_DURATION));
+
         // Now remove matches and apply gravity
         const gridAfterRemoval = await removeMatchedTiles(gridWithMatchesMarked);
         const gridAfterGravity = await applyGravityAndSpawn(gridAfterRemoval);
@@ -270,6 +274,13 @@ export default function TriSlidePage() {
           100% { transform: scale(0.3) rotate(10deg); opacity: 0; }
         }
         .animate-tile-vanish { animation: tile-vanish ${GAME_SETTINGS.MATCH_ANIMATION_DURATION}ms ease-in forwards; }
+        
+        /* Override for matched tiles during highlighting phase */
+        .tile-matched-highlighting {
+          animation: none !important;
+          opacity: 1 !important;
+          transform: none !important;
+        }
       `}</style>
       <main className="flex flex-col items-center justify-start min-h-screen p-4 md:p-8 pt-6 md:pt-12 bg-background">
         {showRestorePrompt && (
