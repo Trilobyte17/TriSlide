@@ -68,8 +68,10 @@ export function GridDisplay({
   const getTilePosition = (r: number, c: number, virtualCol?: number) => {
     // virtualCol allows for correct positioning of wrapped tiles
     const effectiveCol = virtualCol !== undefined ? virtualCol : c;
-    const x = effectiveCol * (TILE_BASE_WIDTH / 2);
-    const y = r * TILE_HEIGHT;
+    // Offset odd rows by half a tile width to create triangular tessellation
+    const xOffset = (r % 2 === 1) ? (TILE_BASE_WIDTH / 4) : 0;
+    const x = effectiveCol * (TILE_BASE_WIDTH / 2) + xOffset;
+    const y = r * (TILE_HEIGHT * 0.75); // Overlap rows for triangular tessellation
     return {
       x: x + positionOffset,
       y: y + positionOffset,

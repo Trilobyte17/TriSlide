@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Tile as TileType } from '@/lib/tripuzzle/types';
@@ -12,8 +11,9 @@ interface TileProps {
 const SVG_WIDTH = GAME_SETTINGS.TILE_BASE_WIDTH;
 const SVG_HEIGHT = GAME_SETTINGS.TILE_HEIGHT;
 
-const upPoints = `${SVG_WIDTH / 2},0 0,${SVG_HEIGHT} ${SVG_WIDTH},${SVG_HEIGHT}`;
-const downPoints = `0,0 ${SVG_WIDTH},0 ${SVG_WIDTH / 2},${SVG_HEIGHT}`;
+// Modified the points to potentially correct the orientation
+const upPoints = `0,0 ${SVG_WIDTH},0 ${SVG_WIDTH / 2},${SVG_HEIGHT}`;
+const downPoints = `${SVG_WIDTH / 2},0 0,${SVG_HEIGHT} ${SVG_WIDTH},${SVG_HEIGHT}`;
 
 export function Tile({ tile }: TileProps) {
   const tileStyle = getTileColorStyle(tile.color);

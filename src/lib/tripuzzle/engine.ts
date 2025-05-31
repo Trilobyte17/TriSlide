@@ -3,6 +3,9 @@ import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } fro
 import { GAME_SETTINGS, getRandomColor } from './types';
 
 export function getExpectedOrientation(r: number, c: number): 'up' | 'down' {
+  // For proper triangular tessellation pattern
+  // Even rows: alternating starting with 'up'
+  // Odd rows: alternating starting with 'down' (offset pattern)
   if (r % 2 === 0) { // Even rows
     return c % 2 === 0 ? 'up' : 'down';
   } else { // Odd rows
