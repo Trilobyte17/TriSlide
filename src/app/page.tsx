@@ -63,9 +63,9 @@ export default function TriSlidePage() {
         madeChangesInLoop = true;
         score += matchCount * GAME_SETTINGS.SCORE_PER_MATCHED_TILE;
 
-        // Show matches highlighted for 500ms before clearing
+        // Show matches highlighted for 750ms before clearing
         setGameState(prev => ({ ...prev, grid: gridWithMatchesMarked, score, isLoading: false }));
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 750));
 
         // Now remove matches and apply gravity
         const gridAfterRemoval = await removeMatchedTiles(gridWithMatchesMarked);

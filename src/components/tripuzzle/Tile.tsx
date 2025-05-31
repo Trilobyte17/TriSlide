@@ -26,9 +26,9 @@ export function Tile({ tile }: TileProps) {
   let tileClassName = "";
 
   if (tile.isMatched) {
-    // Matched tiles will vanish. The animation handles their appearance.
-    // We don't need to change fill or border here specifically for matching,
-    // as the animation will take over.
+    // Highlight matched tiles with thick black border while keeping original color
+    currentBorderStroke = "black";
+    currentBorderStrokeWidth = 4;
     tileClassName = "animate-tile-vanish";
   } else if (tile.isNew) {
     tileClassName = "animate-tile-spawn";
