@@ -2,13 +2,13 @@
 import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } from './types';
 import { GAME_SETTINGS, getRandomColor } from './types';
 
-export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
+export function getExpectedOrientation(r: number, c: number): 'up' | 'down' {
   if (r % 2 === 0) { // Even rows
     return c % 2 === 0 ? 'up' : 'down';
   } else { // Odd rows
     return c % 2 === 0 ? 'down' : 'up';
   }
-};
+}
 
 const generateUniqueId = (): string => Math.random().toString(36).substr(2, 9);
 
