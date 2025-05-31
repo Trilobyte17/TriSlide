@@ -57,8 +57,8 @@ export function GridDisplay({
 
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const mathGridWidth = (visualTilesPerRow + 1) * TILE_BASE_WIDTH / 2; 
-  const mathGridHeight = numGridRows * TILE_HEIGHT;
+  const mathGridWidth = visualTilesPerRow * TILE_BASE_WIDTH + (TILE_BASE_WIDTH / 2); 
+  const mathGridHeight = numGridRows * (TILE_HEIGHT * 0.866) + (TILE_HEIGHT * 0.134);
 
   const styledContainerWidth = mathGridWidth + TILE_BORDER_WIDTH;
   const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
@@ -69,13 +69,13 @@ export function GridDisplay({
     // virtualCol allows for correct positioning of wrapped tiles
     const effectiveCol = virtualCol !== undefined ? virtualCol : c;
     // Offset odd rows by half a tile width to create triangular tessellation
-    const xOffset = (r % 2 === 1) ? (TILE_BASE_WIDTH / 4) : 0;
-    const x = effectiveCol * (TILE_BASE_WIDTH / 2) + xOffset;
-    const y = r * (TILE_HEIGHT * 0.75); // Overlap rows for triangular tessellation
+    const xOffset = (r % 2 === 1) ? (TILE_BASE_WIDTH / 2) : 0;
+    const x = effectiveCol * TILE_BASE_WIDTH + xOffset;
+    const y = r * (TILE_HEIGHT * 0.866); // √3/2 ≈ 0.866 for proper triangular spacing
     return {
       x: x + positionOffset,
       y: y + positionOffset,
-      orientation: getExpectedOrientation(r, effectiveCol)
+      orientation: getExpectedOrientation(r, c) // Use actual grid position, not virtual
     };
   };
 
@@ -184,9 +184,9 @@ export function GridDisplay({
     if (currentDragState && currentDragState.dragAxisLocked && currentDragState.draggedLineCoords && currentDragState.draggedLineCoords.length >= 1) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset, draggedLineCoords } = currentDragState;
       
-      let effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.60; 
+      let effectiveTileShiftUnit = TILE_BASE_WIDTH; 
       if (dragAxisLocked === 'diff' || dragAxisLocked === 'sum') {
-         effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.45; 
+         effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.866; 
       }
       
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
@@ -237,9 +237,9 @@ export function GridDisplay({
       if (lineCoordsLength === 0 || !axis) return { dx: 0, dy: 0 };
 
       if (axis === 'row') {
-          return { dx: visualTilesPerRow * (TILE_BASE_WIDTH / 2) + (TILE_BASE_WIDTH/2) , dy: 0 }; 
+          return { dx: visualTilesPerRow * TILE_BASE_WIDTH, dy: 0 }; 
       } else { 
-          const unitShiftDistance = TILE_BASE_WIDTH * 0.5; 
+          const unitShiftDistance = TILE_BASE_WIDTH * 0.866; 
           const angleRad = axis === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3);
           return {
               dx: lineCoordsLength * unitShiftDistance * Math.cos(angleRad),
