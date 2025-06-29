@@ -47,7 +47,11 @@ export const GAME_SETTINGS = {
   TILE_BORDER_WIDTH: 1,
   TILE_BORDER_COLOR_HSL: "0 0% 0%", // Black border
   getExpectedOrientation: (r: number, c: number): 'up' | 'down' => {
-    return (r + c) % 2 === 0 ? 'up' : 'down';
+    if (r % 2 === 0) { // Even rows
+      return c % 2 === 0 ? 'up' : 'down';
+    } else { // Odd rows
+      return c % 2 === 0 ? 'down' : 'up';
+    }
   }
 } as const;
 
