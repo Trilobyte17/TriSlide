@@ -182,49 +182,61 @@ const calculateVirtualPositionForDiagonalSlide = (
     const firstCoord = lineCoords[0];
     const firstOrientation = GAME_SETTINGS.getExpectedOrientation(firstCoord.r, firstCoord.c);
     
+    // Calculate the virtual position by extending the diagonal pattern backward
+    let virtualR = firstCoord.r;
+    let virtualC = firstCoord.c;
+    
     if (type === 'sum') {
       // Sum diagonal (/) - trace backward from first position
       if (firstOrientation === 'up') {
         // From up triangle, previous position is to the right (down triangle)
-        return { r: firstCoord.r, c: firstCoord.c + 1 };
+        virtualC = firstCoord.c + 1;
       } else {
         // From down triangle, previous position is above (up triangle)
-        return { r: firstCoord.r - 1, c: firstCoord.c };
+        virtualR = firstCoord.r - 1;
       }
     } else {
       // Diff diagonal (\) - trace backward from first position
       if (firstOrientation === 'up') {
         // From up triangle, previous position is to the left (down triangle)
-        return { r: firstCoord.r, c: firstCoord.c - 1 };
+        virtualC = firstCoord.c - 1;
       } else {
         // From down triangle, previous position is above (up triangle)
-        return { r: firstCoord.r - 1, c: firstCoord.c };
+        virtualR = firstCoord.r - 1;
       }
     }
+    
+    return { r: virtualR, c: virtualC };
   } else {
     // For backward slides, new tiles enter from after the last position
     const lastCoord = lineCoords[lineCoords.length - 1];
     const lastOrientation = GAME_SETTINGS.getExpectedOrientation(lastCoord.r, lastCoord.c);
     
+    // Calculate the virtual position by extending the diagonal pattern forward
+    let virtualR = lastCoord.r;
+    let virtualC = lastCoord.c;
+    
     if (type === 'sum') {
       // Sum diagonal (/) - trace forward from last position
       if (lastOrientation === 'up') {
         // From up triangle, next position is below (down triangle)
-        return { r: lastCoord.r + 1, c: lastCoord.c };
+        virtualR = lastCoord.r + 1;
       } else {
         // From down triangle, next position is to the left (up triangle)
-        return { r: lastCoord.r, c: lastCoord.c - 1 };
+        virtualC = lastCoord.c - 1;
       }
     } else {
       // Diff diagonal (\) - trace forward from last position
       if (lastOrientation === 'up') {
         // From up triangle, next position is below (down triangle)
-        return { r: lastCoord.r + 1, c: lastCoord.c };
+        virtualR = lastCoord.r + 1;
       } else {
         // From down triangle, next position is to the right (up triangle)
-        return { r: lastCoord.r, c: lastCoord.c + 1 };
+        virtualC = lastCoord.c + 1;
       }
     }
+    
+    return { r: virtualR, c: virtualC };
   }
 };
 
