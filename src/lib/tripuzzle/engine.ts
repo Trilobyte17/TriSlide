@@ -259,25 +259,14 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
     
     let tileToPlace: Tile | null;
     if (isNewlySpawned) {
-      let virtualPosition = targetCoord;
-      
-      if (isDiagonalSlide && diagonalType) {
-        // For diagonal slides, calculate the virtual position where the new tile would logically come from
-        if (slideDirection === 'forward') {
-          // New tile enters from before the first position
-          virtualPosition = extendDiagonalPattern(lineCoords[0], diagonalType, 'before');
-        } else {
-          // New tile enters from after the last position
-          virtualPosition = extendDiagonalPattern(lineCoords[lineCoords.length - 1], diagonalType, 'after');
-        }
-      }
-      
+      // For newly spawned tiles, always use the target coordinate's orientation
+      // This ensures the tile has the correct orientation for its position in the grid
       tileToPlace = {
         id: generateUniqueId(),
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(virtualPosition.r, virtualPosition.c),
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: true,
         isMatched: false,
       };
