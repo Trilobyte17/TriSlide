@@ -146,6 +146,28 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
   return lineCoords;
 };
 
+// Helper function to determine diagonal type from line coordinates
+const getDiagonalTypeFromCoords = (lineCoords: {r: number, c: number}[]): DiagonalType | null => {
+  if (lineCoords.length < 2) return null;
+  
+  // Check if r+c is constant (sum diagonal) or r-c is constant (diff diagonal)
+  const first = lineCoords[0];
+  const second = lineCoords[1];
+  
+  const sumFirst = first.r + first.c;
+  const sumSecond = second.r + second.c;
+  const diffFirst = first.r - first.c;
+  const diffSecond = second.r - second.c;
+  
+  if (sumFirst === sumSecond) {
+    return 'sum';
+  } else if (diffFirst === diffSecond) {
+    return 'diff';
+  }
+  
+  return null;
+};
+
 // Helper function to calculate virtual position for diagonal slides
 const calculateVirtualPositionForDiagonalSlide = (
   targetCoord: {r: number, c: number}, 
@@ -153,57 +175,51 @@ const calculateVirtualPositionForDiagonalSlide = (
   slideDirection: SlideDirection,
   type: DiagonalType
 ): {r: number, c: number} => {
-  const lineLength = lineCoords.length;
-  
   if (slideDirection === 'forward') {
-    // Tiles are entering from the "beginning" of the diagonal
-    // Find the first coordinate and extrapolate backwards
+    // Tiles are entering from where the first tile would come from
     const firstCoord = lineCoords[0];
+    const firstOrientation = GAME_SETTINGS.getExpectedOrientation(firstCoord.r, firstCoord.c);
     
     if (type === 'sum') {
-      // For sum diagonal (/), moving backward means going up-right
-      // From an 'up' triangle: go right (c+1)
-      // From a 'down' triangle: go up (r-1)
-      const firstOrientation = GAME_SETTINGS.getExpectedOrientation(firstCoord.r, firstCoord.c);
+      // For sum diagonal (/), going backward from first position
       if (firstOrientation === 'up') {
+        // From up triangle, go right to get to previous down triangle
         return { r: firstCoord.r, c: firstCoord.c + 1 };
       } else {
+        // From down triangle, go up to get to previous up triangle
         return { r: firstCoord.r - 1, c: firstCoord.c };
       }
     } else {
-      // For diff diagonal (\), moving backward means going up-left
-      // From an 'up' triangle: go left (c-1)
-      // From a 'down' triangle: go up (r-1)
-      const firstOrientation = GAME_SETTINGS.getExpectedOrientation(firstCoord.r, firstCoord.c);
+      // For diff diagonal (\), going backward from first position
       if (firstOrientation === 'up') {
+        // From up triangle, go left to get to previous down triangle
         return { r: firstCoord.r, c: firstCoord.c - 1 };
       } else {
+        // From down triangle, go up to get to previous up triangle
         return { r: firstCoord.r - 1, c: firstCoord.c };
       }
     }
   } else {
-    // Tiles are entering from the "end" of the diagonal
-    // Find the last coordinate and extrapolate forwards
-    const lastCoord = lineCoords[lineLength - 1];
+    // Tiles are entering from where the last tile would go to
+    const lastCoord = lineCoords[lineCoords.length - 1];
+    const lastOrientation = GAME_SETTINGS.getExpectedOrientation(lastCoord.r, lastCoord.c);
     
     if (type === 'sum') {
-      // For sum diagonal (/), moving forward means going down-left
-      // From an 'up' triangle: go down (r+1)
-      // From a 'down' triangle: go left (c-1)
-      const lastOrientation = GAME_SETTINGS.getExpectedOrientation(lastCoord.r, lastCoord.c);
+      // For sum diagonal (/), going forward from last position
       if (lastOrientation === 'up') {
+        // From up triangle, go down to get to next down triangle
         return { r: lastCoord.r + 1, c: lastCoord.c };
       } else {
+        // From down triangle, go left to get to next up triangle
         return { r: lastCoord.r, c: lastCoord.c - 1 };
       }
     } else {
-      // For diff diagonal (\), moving forward means going down-right
-      // From an 'up' triangle: go down (r+1)
-      // From a 'down' triangle: go right (c+1)
-      const lastOrientation = GAME_SETTINGS.getExpectedOrientation(lastCoord.r, lastCoord.c);
+      // For diff diagonal (\), going forward from last position
       if (lastOrientation === 'up') {
+        // From up triangle, go down to get to next down triangle
         return { r: lastCoord.r + 1, c: lastCoord.c };
       } else {
+        // From down triangle, go right to get to next up triangle
         return { r: lastCoord.r, c: lastCoord.c + 1 };
       }
     }
@@ -221,27 +237,9 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
       return tile ? {...tile} : null; 
   });
 
-  // Determine if this is a diagonal slide
+  // Determine if this is a diagonal slide and what type
   const isDiagonalSlide = !lineCoords.every(coord => coord.r === lineCoords[0].r);
-  let diagonalType: DiagonalType | null = null;
-  
-  if (isDiagonalSlide) {
-    // Determine diagonal type by checking the movement pattern
-    if (lineCoords.length >= 2) {
-      const first = lineCoords[0];
-      const second = lineCoords[1];
-      const deltaR = second.r - first.r;
-      const deltaC = second.c - first.c;
-      
-      // Sum diagonal: r+c is constant (moves down-left or up-right)
-      // Diff diagonal: r-c is constant (moves down-right or up-left)
-      if ((deltaR === 1 && deltaC === 0) || (deltaR === 0 && deltaC === -1)) {
-        diagonalType = 'sum';
-      } else if ((deltaR === 1 && deltaC === 0) || (deltaR === 0 && deltaC === 1)) {
-        diagonalType = 'diff';
-      }
-    }
-  }
+  const diagonalType = isDiagonalSlide ? getDiagonalTypeFromCoords(lineCoords) : null;
 
   for (let i = 0; i < numCellsInLine; i++) {
     const targetCoord = lineCoords[i];
