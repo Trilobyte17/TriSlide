@@ -1,10 +1,8 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
-import { getExpectedOrientation } from '@/lib/tripuzzle/engine';
 import { Tile } from './Tile';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import Image from 'next/image'; // Import next/image
@@ -73,7 +71,7 @@ export function GridDisplay({
     return {
       x: x + positionOffset,
       y: y + positionOffset,
-      orientation: getExpectedOrientation(r, effectiveCol)
+      orientation: GAME_SETTINGS.getExpectedOrientation(r, effectiveCol)
     };
   };
 
@@ -371,4 +369,3 @@ export function GridDisplay({
     </div>
   );
 }
-
