@@ -1,6 +1,5 @@
 import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } from './types';
 import { GAME_SETTINGS, getRandomColor } from './types';
-import { generateUniqueId } from './utils';
 
 export function getExpectedOrientation(r: number, c: number): 'up' | 'down' {
   if (r % 2 === 0) { // Even rows
