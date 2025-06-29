@@ -1,7 +1,6 @@
 import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } from './types';
-import { GAME_SETTINGS, getRandomColor, getExpectedOrientation } from './types';
+import { GAME_SETTINGS, getRandomColor } from './types';
 
-// Move getExpectedOrientation to types.ts to avoid Server Action issues
 const generateUniqueId = (): string => Math.random().toString(36).substr(2, 9);
 
 export const getGridDimensions = async (grid: GridData): Promise<GridDimensions> => {
@@ -32,7 +31,7 @@ export const addInitialTiles = async (grid: GridData): Promise<GridData> => {
           color: getRandomColor(),
           row: r_add,
           col: c_add,
-          orientation: getExpectedOrientation(r_add, c_add),
+          orientation: GAME_SETTINGS.getExpectedOrientation(r_add, c_add),
           isNew: true,
           isMatched: false,
         };
@@ -65,7 +64,7 @@ const getNextCoordOnDiagonalPath = (r: number, c: number, currentCellOrientation
   }
 
   if (nextR >= 0 && nextR < numGridRows && nextC >= 0 && nextC < numVisualCols) {
-    if (getExpectedOrientation(nextR, nextC) === expectedNextOrientation) {
+    if (GAME_SETTINGS.getExpectedOrientation(nextR, nextC) === expectedNextOrientation) {
       return { r: nextR, c: nextC };
     }
   }
@@ -92,7 +91,7 @@ const getPrevCoordOnDiagonalPath = (r: number, c: number, currentCellOrientation
   }
 
   if (prevR >= 0 && prevR < numGridRows && prevC >= 0 && prevC < numVisualCols) {
-    if (getExpectedOrientation(prevR, prevC) === expectedPrevOrientation) {
+    if (GAME_SETTINGS.getExpectedOrientation(prevR, prevC) === expectedPrevOrientation) {
       return { r: prevR, c: prevC };
     }
   }
@@ -115,7 +114,7 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
   let currR_fwd = startR;
   let currC_fwd = startC;
   while (true) {
-    const currentOrientation = getExpectedOrientation(currR_fwd, currC_fwd);
+    const currentOrientation = GAME_SETTINGS.getExpectedOrientation(currR_fwd, currC_fwd);
     const nextCoord = getNextCoordOnDiagonalPath(currR_fwd, currC_fwd, currentOrientation, type, numGridRows, numVisualCols);
     if (nextCoord && !lineCoords.some(lc => lc.r === nextCoord.r && lc.c === nextCoord.c)) {
       lineCoords.push(nextCoord);
@@ -130,7 +129,7 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
   let currR_bwd = startR;
   let currC_bwd = startC;
   while (true) {
-    const currentOrientation = getExpectedOrientation(currR_bwd, currC_bwd);
+    const currentOrientation = GAME_SETTINGS.getExpectedOrientation(currR_bwd, currC_bwd);
     const prevCoord = getPrevCoordOnDiagonalPath(currR_bwd, currC_bwd, currentOrientation, type, numGridRows, numVisualCols);
     if (prevCoord && !lineCoords.some(lc => lc.r === prevCoord.r && lc.c === prevCoord.c)) {
       lineCoords.unshift(prevCoord); // Add to the beginning
@@ -183,7 +182,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
+        orientation: GAME_SETTINGS.getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: true,
         isMatched: false,
       };
@@ -195,7 +194,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
           id: sourceTileData.id, 
           row: targetCoord.r,
           col: targetCoord.c,
-          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), 
+          orientation: GAME_SETTINGS.getExpectedOrientation(targetCoord.r, targetCoord.c), 
           isNew: false, 
           isMatched: false,
         };
@@ -232,7 +231,7 @@ export const getNeighbors = async (r: number, c: number, grid: GridData): Promis
   const currentTile = grid[r]?.[c];
   if (!currentTile) return [];
 
-  const currentCanonicalOrientation = getExpectedOrientation(r, c);
+  const currentCanonicalOrientation = GAME_SETTINGS.getExpectedOrientation(r, c);
 
   const potentialSideSharingConfigs: { dr: number, dc: number, reqOppositeOrientation: 'up' | 'down' }[] = [
     // Horizontal left
@@ -255,7 +254,7 @@ export const getNeighbors = async (r: number, c: number, grid: GridData): Promis
     if (nr >= 0 && nr < numGridRows && nc >= 0 && nc < numVisualCols) {
       const neighborTile = grid[nr]?.[nc];
       if (neighborTile) {
-        if (getExpectedOrientation(nr, nc) === config.reqOppositeOrientation) {
+        if (GAME_SETTINGS.getExpectedOrientation(nr, nc) === config.reqOppositeOrientation) {
           neighbors.push({ r: nr, c: nc });
         }
       }
@@ -349,7 +348,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
             id: tileToFall.id,
             row: emptySlotR,
             col: c_grav,
-            orientation: getExpectedOrientation(emptySlotR, c_grav),
+            orientation: GAME_SETTINGS.getExpectedOrientation(emptySlotR, c_grav),
             isNew: false, 
           };
           newGrid[r_grav_fill][c_grav] = null; 
@@ -368,7 +367,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
           color: getRandomColor(),
           row: r_spawn,
           col: c_spawn,
-          orientation: getExpectedOrientation(r_spawn, c_spawn),
+          orientation: GAME_SETTINGS.getExpectedOrientation(r_spawn, c_spawn),
           isNew: true,
           isMatched: false,
         };
