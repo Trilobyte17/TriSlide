@@ -2,6 +2,14 @@ import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } fro
 import { GAME_SETTINGS, getRandomColor } from './types';
 import { generateUniqueId } from './utils';
 
+export function getExpectedOrientation(r: number, c: number): 'up' | 'down' {
+  if (r % 2 === 0) { // Even rows
+    return c % 2 === 0 ? 'up' : 'down';
+  } else { // Odd rows
+    return c % 2 === 0 ? 'down' : 'up';
+  }
+}
+
 export const getGridDimensions = async (grid: GridData): Promise<GridDimensions> => {
   const rows = grid.length;
   const cols = grid[0]?.length || 0;
@@ -30,7 +38,7 @@ export const addInitialTiles = async (grid: GridData): Promise<GridData> => {
           color: getRandomColor(),
           row: r_add,
           col: c_add,
-          orientation: GAME_SETTINGS.getExpectedOrientation(r_add, c_add),
+          orientation: getExpectedOrientation(r_add, c_add),
           isNew: true,
           isMatched: false,
         };
@@ -63,7 +71,7 @@ const getNextCoordOnDiagonalPath = (r: number, c: number, currentCellOrientation
   }
 
   if (nextR >= 0 && nextR < numGridRows && nextC >= 0 && nextC < numVisualCols) {
-    if (GAME_SETTINGS.getExpectedOrientation(nextR, nextC) === expectedNextOrientation) {
+    if (getExpectedOrientation(nextR, nextC) === expectedNextOrientation) {
       return { r: nextR, c: nextC };
     }
   }
@@ -90,7 +98,7 @@ const getPrevCoordOnDiagonalPath = (r: number, c: number, currentCellOrientation
   }
 
   if (prevR >= 0 && prevR < numGridRows && prevC >= 0 && prevC < numVisualCols) {
-    if (GAME_SETTINGS.getExpectedOrientation(prevR, prevC) === expectedPrevOrientation) {
+    if (getExpectedOrientation(prevR, prevC) === expectedPrevOrientation) {
       return { r: prevR, c: prevC };
     }
   }
@@ -113,7 +121,7 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
   let currR_fwd = startR;
   let currC_fwd = startC;
   while (true) {
-    const currentOrientation = GAME_SETTINGS.getExpectedOrientation(currR_fwd, currC_fwd);
+    const currentOrientation = getExpectedOrientation(currR_fwd, currC_fwd);
     const nextCoord = getNextCoordOnDiagonalPath(currR_fwd, currC_fwd, currentOrientation, type, numGridRows, numVisualCols);
     if (nextCoord && !lineCoords.some(lc => lc.r === nextCoord.r && lc.c === nextCoord.c)) {
       lineCoords.push(nextCoord);
@@ -128,7 +136,7 @@ export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC:
   let currR_bwd = startR;
   let currC_bwd = startC;
   while (true) {
-    const currentOrientation = GAME_SETTINGS.getExpectedOrientation(currR_bwd, currC_bwd);
+    const currentOrientation = getExpectedOrientation(currR_bwd, currC_bwd);
     const prevCoord = getPrevCoordOnDiagonalPath(currR_bwd, currC_bwd, currentOrientation, type, numGridRows, numVisualCols);
     if (prevCoord && !lineCoords.some(lc => lc.r === prevCoord.r && lc.c === prevCoord.c)) {
       lineCoords.unshift(prevCoord); // Add to the beginning
@@ -168,75 +176,52 @@ const getDiagonalTypeFromCoords = (lineCoords: {r: number, c: number}[]): Diagon
   return null;
 };
 
-// Helper function to calculate virtual position for diagonal slides
-const calculateVirtualPositionForDiagonalSlide = (
-  targetCoord: {r: number, c: number}, 
-  lineCoords: {r: number, c: number}[], 
-  slideDirection: SlideDirection,
-  type: DiagonalType,
-  isNewlySpawned: boolean
+// Helper function to extend diagonal pattern beyond grid boundaries
+const extendDiagonalPattern = (
+  coord: {r: number, c: number}, 
+  type: DiagonalType, 
+  direction: 'before' | 'after'
 ): {r: number, c: number} => {
+  const currentOrientation = getExpectedOrientation(coord.r, coord.c);
   
-  if (slideDirection === 'forward') {
-    // For forward slides, new tiles enter from before the first position
-    const firstCoord = lineCoords[0];
-    const firstOrientation = GAME_SETTINGS.getExpectedOrientation(firstCoord.r, firstCoord.c);
-    
-    // Calculate the virtual position by extending the diagonal pattern backward
-    let virtualR = firstCoord.r;
-    let virtualC = firstCoord.c;
-    
+  if (direction === 'before') {
+    // Calculate the position that would come before this coordinate in the diagonal
     if (type === 'sum') {
-      // Sum diagonal (/) - trace backward from first position
-      if (firstOrientation === 'up') {
-        // From up triangle, previous position is to the right (down triangle)
-        virtualC = firstCoord.c + 1;
+      if (currentOrientation === 'up') {
+        // Before an up triangle in sum diagonal is a down triangle to the right
+        return { r: coord.r, c: coord.c + 1 };
       } else {
-        // From down triangle, previous position is above (up triangle)
-        virtualR = firstCoord.r - 1;
+        // Before a down triangle in sum diagonal is an up triangle above
+        return { r: coord.r - 1, c: coord.c };
       }
-    } else {
-      // Diff diagonal (\) - trace backward from first position
-      if (firstOrientation === 'up') {
-        // From up triangle, previous position is to the left (down triangle)
-        virtualC = firstCoord.c - 1;
+    } else { // diff diagonal
+      if (currentOrientation === 'up') {
+        // Before an up triangle in diff diagonal is a down triangle to the left
+        return { r: coord.r, c: coord.c - 1 };
       } else {
-        // From down triangle, previous position is above (up triangle)
-        virtualR = firstCoord.r - 1;
+        // Before a down triangle in diff diagonal is an up triangle above
+        return { r: coord.r - 1, c: coord.c };
       }
     }
-    
-    return { r: virtualR, c: virtualC };
   } else {
-    // For backward slides, new tiles enter from after the last position
-    const lastCoord = lineCoords[lineCoords.length - 1];
-    const lastOrientation = GAME_SETTINGS.getExpectedOrientation(lastCoord.r, lastCoord.c);
-    
-    // Calculate the virtual position by extending the diagonal pattern forward
-    let virtualR = lastCoord.r;
-    let virtualC = lastCoord.c;
-    
+    // Calculate the position that would come after this coordinate in the diagonal
     if (type === 'sum') {
-      // Sum diagonal (/) - trace forward from last position
-      if (lastOrientation === 'up') {
-        // From up triangle, next position is below (down triangle)
-        virtualR = lastCoord.r + 1;
+      if (currentOrientation === 'up') {
+        // After an up triangle in sum diagonal is a down triangle below
+        return { r: coord.r + 1, c: coord.c };
       } else {
-        // From down triangle, next position is to the left (up triangle)
-        virtualC = lastCoord.c - 1;
+        // After a down triangle in sum diagonal is an up triangle to the left
+        return { r: coord.r, c: coord.c - 1 };
       }
-    } else {
-      // Diff diagonal (\) - trace forward from last position
-      if (lastOrientation === 'up') {
-        // From up triangle, next position is below (down triangle)
-        virtualR = lastCoord.r + 1;
+    } else { // diff diagonal
+      if (currentOrientation === 'up') {
+        // After an up triangle in diff diagonal is a down triangle below
+        return { r: coord.r + 1, c: coord.c };
       } else {
-        // From down triangle, next position is to the right (up triangle)
-        virtualC = lastCoord.c + 1;
+        // After a down triangle in diff diagonal is an up triangle to the right
+        return { r: coord.r, c: coord.c + 1 };
       }
     }
-    
-    return { r: virtualR, c: virtualC };
   }
 };
 
@@ -275,7 +260,14 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
       let virtualPosition = targetCoord;
       
       if (isDiagonalSlide && diagonalType) {
-        virtualPosition = calculateVirtualPositionForDiagonalSlide(targetCoord, lineCoords, slideDirection, diagonalType, isNewlySpawned);
+        // For diagonal slides, calculate the virtual position where the new tile would logically come from
+        if (slideDirection === 'forward') {
+          // New tile enters from before the first position
+          virtualPosition = extendDiagonalPattern(lineCoords[0], diagonalType, 'before');
+        } else {
+          // New tile enters from after the last position
+          virtualPosition = extendDiagonalPattern(lineCoords[lineCoords.length - 1], diagonalType, 'after');
+        }
       }
       
       tileToPlace = {
@@ -283,7 +275,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: GAME_SETTINGS.getExpectedOrientation(virtualPosition.r, virtualPosition.c),
+        orientation: getExpectedOrientation(virtualPosition.r, virtualPosition.c),
         isNew: true,
         isMatched: false,
       };
@@ -295,7 +287,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
           id: sourceTileData.id, 
           row: targetCoord.r,
           col: targetCoord.c,
-          orientation: GAME_SETTINGS.getExpectedOrientation(targetCoord.r, targetCoord.c), 
+          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), 
           isNew: false, 
           isMatched: false,
         };
@@ -332,7 +324,7 @@ export const getNeighbors = async (r: number, c: number, grid: GridData): Promis
   const currentTile = grid[r]?.[c];
   if (!currentTile) return [];
 
-  const currentCanonicalOrientation = GAME_SETTINGS.getExpectedOrientation(r, c);
+  const currentCanonicalOrientation = getExpectedOrientation(r, c);
 
   const potentialSideSharingConfigs: { dr: number, dc: number, reqOppositeOrientation: 'up' | 'down' }[] = [
     // Horizontal left
@@ -355,7 +347,7 @@ export const getNeighbors = async (r: number, c: number, grid: GridData): Promis
     if (nr >= 0 && nr < numGridRows && nc >= 0 && nc < numVisualCols) {
       const neighborTile = grid[nr]?.[nc];
       if (neighborTile) {
-        if (GAME_SETTINGS.getExpectedOrientation(nr, nc) === config.reqOppositeOrientation) {
+        if (getExpectedOrientation(nr, nc) === config.reqOppositeOrientation) {
           neighbors.push({ r: nr, c: nc });
         }
       }
@@ -449,7 +441,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
             id: tileToFall.id,
             row: emptySlotR,
             col: c_grav,
-            orientation: GAME_SETTINGS.getExpectedOrientation(emptySlotR, c_grav),
+            orientation: getExpectedOrientation(emptySlotR, c_grav),
             isNew: false, 
           };
           newGrid[r_grav_fill][c_grav] = null; 
@@ -468,7 +460,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
           color: getRandomColor(),
           row: r_spawn,
           col: c_spawn,
-          orientation: GAME_SETTINGS.getExpectedOrientation(r_spawn, c_spawn),
+          orientation: getExpectedOrientation(r_spawn, c_spawn),
           isNew: true,
           isMatched: false,
         };
