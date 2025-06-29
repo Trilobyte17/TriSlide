@@ -173,53 +173,55 @@ const calculateVirtualPositionForDiagonalSlide = (
   targetCoord: {r: number, c: number}, 
   lineCoords: {r: number, c: number}[], 
   slideDirection: SlideDirection,
-  type: DiagonalType
+  type: DiagonalType,
+  isNewlySpawned: boolean
 ): {r: number, c: number} => {
+  
   if (slideDirection === 'forward') {
-    // Tiles are entering from where the first tile would come from
+    // For forward slides, new tiles enter from before the first position
     const firstCoord = lineCoords[0];
     const firstOrientation = GAME_SETTINGS.getExpectedOrientation(firstCoord.r, firstCoord.c);
     
     if (type === 'sum') {
-      // For sum diagonal (/), going backward from first position
+      // Sum diagonal (/) - trace backward from first position
       if (firstOrientation === 'up') {
-        // From up triangle, go right to get to previous down triangle
+        // From up triangle, previous position is to the right (down triangle)
         return { r: firstCoord.r, c: firstCoord.c + 1 };
       } else {
-        // From down triangle, go up to get to previous up triangle
+        // From down triangle, previous position is above (up triangle)
         return { r: firstCoord.r - 1, c: firstCoord.c };
       }
     } else {
-      // For diff diagonal (\), going backward from first position
+      // Diff diagonal (\) - trace backward from first position
       if (firstOrientation === 'up') {
-        // From up triangle, go left to get to previous down triangle
+        // From up triangle, previous position is to the left (down triangle)
         return { r: firstCoord.r, c: firstCoord.c - 1 };
       } else {
-        // From down triangle, go up to get to previous up triangle
+        // From down triangle, previous position is above (up triangle)
         return { r: firstCoord.r - 1, c: firstCoord.c };
       }
     }
   } else {
-    // Tiles are entering from where the last tile would go to
+    // For backward slides, new tiles enter from after the last position
     const lastCoord = lineCoords[lineCoords.length - 1];
     const lastOrientation = GAME_SETTINGS.getExpectedOrientation(lastCoord.r, lastCoord.c);
     
     if (type === 'sum') {
-      // For sum diagonal (/), going forward from last position
+      // Sum diagonal (/) - trace forward from last position
       if (lastOrientation === 'up') {
-        // From up triangle, go down to get to next down triangle
+        // From up triangle, next position is below (down triangle)
         return { r: lastCoord.r + 1, c: lastCoord.c };
       } else {
-        // From down triangle, go left to get to next up triangle
+        // From down triangle, next position is to the left (up triangle)
         return { r: lastCoord.r, c: lastCoord.c - 1 };
       }
     } else {
-      // For diff diagonal (\), going forward from last position
+      // Diff diagonal (\) - trace forward from last position
       if (lastOrientation === 'up') {
-        // From up triangle, go down to get to next down triangle
+        // From up triangle, next position is below (down triangle)
         return { r: lastCoord.r + 1, c: lastCoord.c };
       } else {
-        // From down triangle, go right to get to next up triangle
+        // From down triangle, next position is to the right (up triangle)
         return { r: lastCoord.r, c: lastCoord.c + 1 };
       }
     }
@@ -261,7 +263,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
       let virtualPosition = targetCoord;
       
       if (isDiagonalSlide && diagonalType) {
-        virtualPosition = calculateVirtualPositionForDiagonalSlide(targetCoord, lineCoords, slideDirection, diagonalType);
+        virtualPosition = calculateVirtualPositionForDiagonalSlide(targetCoord, lineCoords, slideDirection, diagonalType, isNewlySpawned);
       }
       
       tileToPlace = {
