@@ -175,13 +175,25 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
     
     let tileToPlace: Tile | null;
     if (isNewlySpawned) {
-      // For newly spawned tiles, always use the correct orientation for the target position
+      // For newly spawned tiles, calculate virtual position for proper orientation
+      const isDiagonalSlide = !lineCoords.every(coord => coord.r === lineCoords[0].r);
+      let virtualCol = targetCoord.c;
+      
+      if (isDiagonalSlide) {
+        // For diagonal slides, calculate the virtual column position
+        if (slideDirection === 'forward') {
+          virtualCol = targetCoord.c - numCellsInLine;
+        } else { // backward
+          virtualCol = targetCoord.c + numCellsInLine;
+        }
+      }
+      
       tileToPlace = {
         id: generateUniqueId(),
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: GAME_SETTINGS.getExpectedOrientation(targetCoord.r, targetCoord.c),
+        orientation: GAME_SETTINGS.getExpectedOrientation(targetCoord.r, virtualCol),
         isNew: true,
         isMatched: false,
       };
