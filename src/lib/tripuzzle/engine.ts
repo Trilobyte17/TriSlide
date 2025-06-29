@@ -10,6 +10,8 @@ export function getExpectedOrientation(r: number, c: number): 'up' | 'down' {
   }
 }
 
+const generateUniqueIdLocal = (): string => Math.random().toString(36).substr(2, 9);
+
 export const getGridDimensions = async (grid: GridData): Promise<GridDimensions> => {
   const rows = grid.length;
   const cols = grid[0]?.length || 0;
@@ -34,7 +36,7 @@ export const addInitialTiles = async (grid: GridData): Promise<GridData> => {
 
     for (let c_add = 0; c_add < numVisualTilesInThisRow; c_add++) {
         newGrid[r_add][c_add] = {
-          id: generateUniqueId(),
+          id: generateUniqueIdLocal(),
           color: getRandomColor(),
           row: r_add,
           col: c_add,
@@ -260,7 +262,7 @@ export const slideLine = async (grid: GridData, lineCoords: {r: number, c: numbe
       // For newly spawned tiles, always use the target coordinate's orientation
       // This ensures the tile has the correct orientation for its position in the grid
       tileToPlace = {
-        id: generateUniqueId(),
+        id: generateUniqueIdLocal(),
         color: getRandomColor(),
         row: targetCoord.r,
         col: targetCoord.c,
@@ -445,7 +447,7 @@ export const applyGravityAndSpawn = async (grid: GridData): Promise<GridData> =>
     for (let c_spawn = 0; c_spawn < numVisualCols; c_spawn++) {
       if (newGrid[r_spawn][c_spawn] === null) {
         newGrid[r_spawn][c_spawn] = {
-          id: generateUniqueId(),
+          id: generateUniqueIdLocal(),
           color: getRandomColor(),
           row: r_spawn,
           col: c_spawn,
