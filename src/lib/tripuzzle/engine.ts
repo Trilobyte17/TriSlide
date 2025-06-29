@@ -1,7 +1,6 @@
 import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } from './types';
 import { GAME_SETTINGS, getRandomColor } from './types';
-
-const generateUniqueId = (): string => Math.random().toString(36).substr(2, 9);
+import { generateUniqueId } from './utils';
 
 export const getGridDimensions = async (grid: GridData): Promise<GridDimensions> => {
   const rows = grid.length;
