@@ -84,7 +84,8 @@ export function GridDisplay({
       const displacementX = numElementsInLine * (TILE_BASE_WIDTH / 2);
       return { dx: displacementX, dy: 0 };
     } else { 
-      const angleRad = dragAxis === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
+      // This logic is for visual wrapping effect, angles are approximations of screen space vectors
+      const angleRad = dragAxis === 'diff' ? Math.PI * (2 / 3) : Math.PI / 3; // diff for \, sum for /
       const effectiveStepDistance = TILE_BASE_WIDTH * 0.75;
       const displacementMagnitude = numElementsInLine * effectiveStepDistance;
       
@@ -138,13 +139,17 @@ export function GridDisplay({
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
           determinedAxis = 'row';
         } else if (angle > 30 && angle < 90) { 
-          determinedAxis = 'sum'; 
+          // Quadrant 1, visual '\', should be r-c=k which is 'diff'
+          determinedAxis = 'diff'; 
         } else if (angle > 90 && angle < 150) { 
-          determinedAxis = 'diff'; 
-        } else if (angle < -30 && angle > -90) { 
-          determinedAxis = 'diff'; 
-        } else if (angle < -90 && angle > -150) { 
+          // Quadrant 2, visual '/', should be r+c=k which is 'sum'
           determinedAxis = 'sum'; 
+        } else if (angle < -30 && angle > -90) { 
+          // Quadrant 4, visual '/', should be r+c=k which is 'sum'
+          determinedAxis = 'sum'; 
+        } else if (angle < -90 && angle > -150) { 
+          // Quadrant 3, visual '\', should be r-c=k which is 'diff'
+          determinedAxis = 'diff'; 
         }
         newDragAxisLocked = determinedAxis;
 
@@ -160,7 +165,7 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        const axisAngleRad = newDragAxisLocked === 'row' ? 0 : (newDragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3);
+        const axisAngleRad = newDragAxisLocked === 'row' ? 0 : (newDragAxisLocked === 'sum' ? Math.PI / 3 : (2 * Math.PI) / 3);
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -261,14 +266,17 @@ export function GridDisplay({
           const isPartOfActiveDrag = activeDrag?.draggedLineCoords?.some(coord => coord.r === rIndex && coord.c === cIndex);
           
           if (!tileData) return null;
+          
+          let primaryDeltaX = 0;
+          let primaryDeltaY = 0;
 
           let transformsToRender = [{ dx: 0, dy: 0, keySuffix: '-orig' }];
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && activeDrag.dragAxisLocked) {
-              const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 : (activeDrag.dragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3);
+              const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 : (activeDrag.dragAxisLocked === 'sum' ? Math.PI / 3 : (2 * Math.PI) / 3);
               
-              const primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
-              const primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
+              primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
+              primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
             
               transformsToRender[0] = { dx: primaryDeltaX, dy: primaryDeltaY, keySuffix: '-drag' };
 
