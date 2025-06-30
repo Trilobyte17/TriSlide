@@ -66,13 +66,8 @@ export const getRandomColor = (): TileColor => {
 };
 
 export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  if (r < 0) r = Math.abs(r); // Handle negative row indices if they occur
-  const isEvenRow = r % 2 === 0;
-  const isEvenCol = c % 2 === 0;
-
-  if (isEvenRow) {
-    return isEvenCol ? 'up' : 'down';
-  } else {
-    return isEvenCol ? 'down' : 'up';
-  }
+  // All tiles in a row have the same orientation.
+  // This makes horizontal sliding intuitive (no flipping).
+  // Even rows point down, odd rows point up, to ensure they tessellate correctly.
+  return r % 2 === 0 ? 'down' : 'up';
 };

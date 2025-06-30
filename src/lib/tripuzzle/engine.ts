@@ -46,113 +46,44 @@ export const addInitialTiles = (grid: GridData): GridData => {
   return newGrid;
 };
 
-const getNextCoordOnDiagonalPath = (
-  r: number, c: number,
-  type: DiagonalType,
-  numGridRows: number,
-  numVisualCols: number
-): {r: number, c: number} | null => {
-  let nextR = -1, nextC = -1;
-  const currentTileOrientation = getExpectedOrientation(r,c);
-  let expectedNextOrientation: 'up' | 'down';
-
-  if (type === 'sum') { 
-    if (currentTileOrientation === 'up') {
-      nextR = r + 1; nextC = c; expectedNextOrientation = 'down';
-    } else { 
-      nextR = r; nextC = c - 1; expectedNextOrientation = 'up';
-    }
-  } else { 
-    if (currentTileOrientation === 'up') {
-      nextR = r + 1; nextC = c; expectedNextOrientation = 'down';
-    } else { 
-      nextR = r; nextC = c + 1; expectedNextOrientation = 'up';
-    }
-  }
-
-  if (nextR >= 0 && nextR < numGridRows && nextC >= 0 && nextC < numVisualCols) {
-    if (getExpectedOrientation(nextR, nextC) === expectedNextOrientation) {
-      return { r: nextR, c: nextC };
-    }
-  }
-  return null;
-};
-
-const getPrevCoordOnDiagonalPath = (
-  r: number, c: number,
-  type: DiagonalType,
-  numGridRows: number,
-  numVisualCols: number
-): {r: number, c: number} | null => {
-  let prevR = -1, prevC = -1;
-  const currentTileOrientation = getExpectedOrientation(r,c);
-  let expectedPrevOrientation: 'up' | 'down';
-
-  if (type === 'sum') { 
-    if (currentTileOrientation === 'up') {
-      prevR = r; prevC = c + 1; expectedPrevOrientation = 'down';
-    } else { 
-      prevR = r - 1; prevC = c; expectedPrevOrientation = 'up';
-    }
-  } else { 
-    if (currentTileOrientation === 'up') {
-      prevR = r; prevC = c - 1; expectedPrevOrientation = 'down';
-    } else { 
-      prevR = r - 1; prevC = c; expectedPrevOrientation = 'up';
-    }
-  }
-
-  if (prevR >= 0 && prevR < numGridRows && prevC >= 0 && prevC < numVisualCols) {
-     if (getExpectedOrientation(prevR, prevC) === expectedPrevOrientation) {
-      return { r: prevR, c: prevC };
-    }
-  }
-  return null;
-};
-
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): {r: number, c: number}[] => {
   const { rows: numGridRows } = getGridDimensions(grid);
   const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
-
   const lineCoords: {r: number, c: number}[] = [];
-  if (startR >= 0 && startR < numGridRows && startC >= 0 && startC < numVisualCols) {
-    lineCoords.push({ r: startR, c: startC });
-  } else {
-    return []; 
+
+  if (startR < 0 || startR >= numGridRows || startC < 0 || startC >= numVisualCols) {
+    return [];
   }
 
-  let currR_fwd = startR;
-  let currC_fwd = startC;
-  while (true) {
-    const nextPos = getNextCoordOnDiagonalPath(currR_fwd, currC_fwd, type, numGridRows, numVisualCols);
-    if (nextPos) {
-      if (lineCoords.some(coord => coord.r === nextPos.r && coord.c === nextPos.c)) break; 
-      lineCoords.push(nextPos); 
-      currR_fwd = nextPos.r;
-      currC_fwd = nextPos.c;
-    } else {
-      break;
+  let r_iterator = startR;
+  let c_iterator = startC;
+
+  // Find the starting tile of the diagonal line by traversing up and left/right
+  if (type === 'sum') { // Diagonal like '/'
+    while (r_iterator > 0 && c_iterator < numVisualCols - 1) {
+      r_iterator--;
+      c_iterator++;
+    }
+  } else { // Diagonal like '\'
+    while (r_iterator > 0 && c_iterator > 0) {
+      r_iterator--;
+      c_iterator--;
     }
   }
 
-  let currR_bwd = startR;
-  let currC_bwd = startC;
-  while (true) {
-    const prevPos = getPrevCoordOnDiagonalPath(currR_bwd, currC_bwd, type, numGridRows, numVisualCols);
-    if (prevPos) {
-      if (lineCoords.some(coord => coord.r === prevPos.r && coord.c === prevPos.c)) break;
-      lineCoords.unshift(prevPos); 
-      currR_bwd = prevPos.r;
-      currC_bwd = prevPos.c;
+  // Now, traverse down the diagonal from the starting point to collect all tiles
+  while (r_iterator < numGridRows && c_iterator >= 0 && c_iterator < numVisualCols) {
+    if (grid[r_iterator]?.[c_iterator]) {
+        lineCoords.push({ r: r_iterator, c: c_iterator });
+    }
+    
+    r_iterator++;
+    if (type === 'sum') {
+      c_iterator--;
     } else {
-      break;
+      c_iterator++;
     }
   }
-  
-  lineCoords.sort((a, b) => {
-    if (a.r !== b.r) return a.r - b.r;
-    return a.c - b.c;
-  });
 
   return lineCoords;
 };
@@ -237,14 +168,14 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
 
     // Vertical neighbor depends on the tile's orientation
     if (orientation === 'up') {
-        // Up-pointing triangles have a horizontal base at the bottom, connecting to the tile below.
-        if (r < rows - 1) {
-            neighbors.push({ r: r + 1, c });
-        }
-    } else { // orientation === 'down'
-        // Down-pointing triangles have a horizontal base at the top, connecting to the tile above.
+        // Up-pointing triangles have a horizontal base at the top, connecting to the tile above.
         if (r > 0) {
             neighbors.push({ r: r - 1, c });
+        }
+    } else { // orientation === 'down'
+        // Down-pointing triangles have a horizontal base at the bottom, connecting to the tile below.
+        if (r < rows - 1) {
+            neighbors.push({ r: r + 1, c });
         }
     }
 
