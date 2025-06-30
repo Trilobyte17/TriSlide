@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { GridData, DiagonalType, SlideDirection, Tile as TileType } from '@/lib/tripuzzle/types';
-import { GAME_SETTINGS, getExpectedOrientation } from '@/lib/tripuzzle/types';
+import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import { Tile } from './Tile';
 
@@ -71,31 +71,6 @@ export function GridDisplay({
     };
   };
 
-  const getLineDisplacementVector = useCallback((
-    lineCoords: { r: number; c: number }[] | null,
-    dragAxis: DragAxis | null
-  ): { dx: number; dy: number } => {
-    if (!lineCoords || lineCoords.length === 0 || !dragAxis) {
-      return { dx: 0, dy: 0 };
-    }
-    const numElementsInLine = lineCoords.length;
-
-    if (dragAxis === 'row') {
-      const displacementX = numElementsInLine * (TILE_BASE_WIDTH / 2);
-      return { dx: displacementX, dy: 0 };
-    } else { 
-      // This logic is for visual wrapping effect, angles are approximations of screen space vectors
-      const angleRad = dragAxis === 'diff' ? Math.PI / 3 : Math.PI * (2 / 3); // diff for \, sum for /
-      const effectiveStepDistance = TILE_BASE_WIDTH * 0.75;
-      const displacementMagnitude = numElementsInLine * effectiveStepDistance;
-      
-      return {
-          dx: displacementMagnitude * Math.cos(angleRad),
-          dy: displacementMagnitude * Math.sin(angleRad)
-      };
-    }
-  }, [TILE_BASE_WIDTH]);
-
   const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
     if (isProcessingMove || activeDragRef.current) return;
     if (event.type === 'mousedown') event.preventDefault();
@@ -139,16 +114,12 @@ export function GridDisplay({
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
           determinedAxis = 'row';
         } else if (angle > 30 && angle < 90) { 
-          // Quadrant 1, visual '\', should be r-c=k which is 'diff'
           determinedAxis = 'diff'; 
         } else if (angle > 90 && angle < 150) { 
-          // Quadrant 2, visual '/', should be r+c=k which is 'sum'
           determinedAxis = 'sum'; 
         } else if (angle < -30 && angle > -90) { 
-          // Quadrant 4, visual '/', should be r+c=k which is 'sum'
           determinedAxis = 'sum'; 
         } else if (angle < -90 && angle > -150) { 
-          // Quadrant 3, visual '\', should be r-c=k which is 'diff'
           determinedAxis = 'diff'; 
         }
         newDragAxisLocked = determinedAxis;
@@ -199,11 +170,13 @@ export function GridDisplay({
     if (commitParams) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = commitParams;
 
-      let effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.75; 
-      if (dragAxisLocked === 'diff' || dragAxisLocked === 'sum') {
-         effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.6; 
-      } else if (dragAxisLocked === 'row') {
+      let effectiveTileShiftUnit;
+      if (dragAxisLocked === 'row') {
         effectiveTileShiftUnit = TILE_BASE_WIDTH / 2;
+      } else {
+        // The distance between the centers of two adjacent tiles along a diagonal axis
+        // is approximately the width of a tile.
+        effectiveTileShiftUnit = TILE_BASE_WIDTH;
       }
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
@@ -245,8 +218,6 @@ export function GridDisplay({
     };
   }, [activeDrag, handleDragMove, handleDragEnd]);
   
-  const wrapDisplayThreshold = TILE_BASE_WIDTH / 2.5;
-
   return (
     <div
       className="relative rounded-lg shadow-inner select-none touch-none bg-muted"
@@ -261,94 +232,55 @@ export function GridDisplay({
     >
       {gridData.map((row, rIndex) => {
         return row.slice(0, visualTilesPerRow).map((tileData, cIndex) => {
+          if (!tileData) return null;
+
           const { x: baseX, y: baseY } = getTilePosition(rIndex, cIndex);
-          
           const isPartOfActiveDrag = activeDrag?.draggedLineCoords?.some(coord => coord.r === rIndex && coord.c === cIndex);
           
-          if (!tileData) return null;
-          
-          let primaryDeltaX = 0;
-          let primaryDeltaY = 0;
+          let deltaX = 0;
+          let deltaY = 0;
 
-          let transformsToRender = [{ dx: 0, dy: 0, keySuffix: '-orig' }];
-
-          if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && activeDrag.dragAxisLocked) {
+          if (activeDrag && isPartOfActiveDrag && activeDrag.dragAxisLocked) {
               const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 : (activeDrag.dragAxisLocked === 'sum' ? (2 * Math.PI) / 3 : Math.PI / 3);
               
-              primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
-              primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
-            
-              transformsToRender[0] = { dx: primaryDeltaX, dy: primaryDeltaY, keySuffix: '-drag' };
+              deltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
+              deltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
+          }
 
-              const lineDisplacement = getLineDisplacementVector(activeDrag.draggedLineCoords, activeDrag.dragAxisLocked);
+          let tileStyle: React.CSSProperties = {
+            position: 'absolute',
+            left: `${baseX}px`,
+            top: `${baseY}px`,
+            width: `${TILE_BASE_WIDTH}px`,
+            height: `${TILE_HEIGHT}px`,
+            transform: `translate(${deltaX}px, ${deltaY}px)`,
+            transition: (activeDrag === null && !isProcessingMove) ? `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out, opacity ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out` : 'none',
+            zIndex: 1, 
+            cursor: (activeDrag || isProcessingMove) ? 'default' : 'grab',
+          };
 
-              if (Math.abs(activeDrag.visualOffset) > wrapDisplayThreshold) {
-                  if (activeDrag.visualOffset > 0) {
-                      transformsToRender.push({ dx: primaryDeltaX - lineDisplacement.dx, dy: primaryDeltaY - lineDisplacement.dy, keySuffix: '-wrap-past' });
-                  }
-                  if (activeDrag.visualOffset < 0) {
-                      transformsToRender.push({ dx: primaryDeltaX + lineDisplacement.dx, dy: primaryDeltaY + lineDisplacement.dy, keySuffix: '-wrap-future' });
-                  }
-              }
+          if (activeDrag && isPartOfActiveDrag) {
+            tileStyle.zIndex = 10; 
+            tileStyle.cursor = 'grabbing';
+          } else if (activeDrag && activeDrag.draggedLineCoords && !isPartOfActiveDrag) {
+            tileStyle.opacity = 0.7;
           }
           
+          if (isProcessingMove && !activeDrag) {
+              tileStyle.zIndex = 5; 
+          }
+
           return (
-            <React.Fragment key={`${rIndex}-${cIndex}-${tileData.id || 'null'}`}>
-              {transformsToRender.map(transform => {
-                 let tileStyle: React.CSSProperties = {
-                    position: 'absolute',
-                    left: `${baseX}px`,
-                    top: `${baseY}px`,
-                    width: `${TILE_BASE_WIDTH}px`,
-                    height: `${TILE_HEIGHT}px`,
-                    transform: `translate(${transform.dx}px, ${transform.dy}px)`,
-                    transition: (activeDrag === null && !isProcessingMove) ? `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out, opacity ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out` : 'none',
-                    zIndex: 1, 
-                    cursor: (activeDrag || isProcessingMove) ? 'default' : 'grab',
-                 };
-      
-                 if (activeDrag && isPartOfActiveDrag) {
-                   tileStyle.zIndex = 10; 
-                   tileStyle.cursor = 'grabbing';
-                 } else if (activeDrag && activeDrag.draggedLineCoords && !isPartOfActiveDrag) {
-                   tileStyle.opacity = 0.7;
-                 }
-                 
-                 if (isProcessingMove && !activeDrag) {
-                    tileStyle.zIndex = 5; 
-                 }
-                 
-                 let tileToRender: TileType = { ...tileData };
-
-                 if (activeDrag && activeDrag.draggedLineCoords && isPartOfActiveDrag && transform.keySuffix.startsWith('-wrap')) {
-                   const lineType = activeDrag.dragAxisLocked;
-                   const numElementsInLine = activeDrag.draggedLineCoords.length;
-                 
-                   if (lineType === 'row') {
-                     let conceptualCol = cIndex;
-                     if (transform.keySuffix.endsWith('-past')) { 
-                       conceptualCol = cIndex - numElementsInLine;
-                     } else if (transform.keySuffix.endsWith('-future')) { 
-                       conceptualCol = cIndex + numElementsInLine;
-                     }
-                     tileToRender.orientation = getExpectedOrientation(rIndex, conceptualCol);
-                   }
-                 }
-
-                 return (
-                   <div
-                     key={tileData.id + transform.keySuffix} 
-                     style={tileStyle}
-                     onMouseDown={(e) => handleDragStart(e, rIndex, cIndex)}
-                     onTouchStart={(e) => handleDragStart(e, rIndex, cIndex)}
-                     role="gridcell"
-                     aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} with color ${tileData.color}`}
-                   >
-                     <Tile tile={tileToRender} />
-                   </div>
-                 );
-              })}
-            </React.Fragment>
+            <div
+              key={tileData.id} 
+              style={tileStyle}
+              onMouseDown={(e) => handleDragStart(e, rIndex, cIndex)}
+              onTouchStart={(e) => handleDragStart(e, rIndex, cIndex)}
+              role="gridcell"
+              aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} with color ${tileData.color}`}
+            >
+              <Tile tile={tileData} />
+            </div>
           );
         })
       })}
