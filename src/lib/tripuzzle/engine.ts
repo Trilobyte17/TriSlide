@@ -55,36 +55,36 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     return [];
   }
 
-  let r_iterator = startR;
-  let c_iterator = startC;
+  let r = startR;
+  let c = startC;
 
-  // Find the starting tile of the diagonal line by traversing up and left/right
-  if (type === 'sum') { // Diagonal like '/'
-    while (r_iterator > 0 && c_iterator < numVisualCols - 1) {
-      r_iterator--;
-      c_iterator++;
+  // Find the starting tile of the diagonal line by traversing "up" to the edge.
+  if (type === 'sum') { // Diagonal like '/', from bottom-left to top-right. Find top-right-most tile.
+    while (r > 0 && c < numVisualCols - 1) {
+      r--;
+      c++;
     }
-  } else { // Diagonal like '\'
-    while (r_iterator > 0 && c_iterator > 0) {
-      r_iterator--;
-      c_iterator--;
+  } else { // Diagonal like '\', from top-left to bottom-right. Find top-left-most tile.
+    while (r > 0 && c > 0) {
+      r--;
+      c--;
     }
   }
 
-  // Now, traverse down the diagonal from the starting point to collect all tiles
-  while (r_iterator < numGridRows && c_iterator >= 0 && c_iterator < numVisualCols) {
-    if (grid[r_iterator]?.[c_iterator]) {
-        lineCoords.push({ r: r_iterator, c: c_iterator });
+  // Now traverse along the diagonal from the edge to collect all tiles.
+  while (r < numGridRows && c >= 0 && c < numVisualCols) {
+    if (grid[r]?.[c]) {
+        lineCoords.push({ r, c });
     }
     
-    r_iterator++;
+    r++;
     if (type === 'sum') {
-      c_iterator--;
+      c--; // A '/' diagonal moves down and to the left.
     } else {
-      c_iterator++;
+      c++; // A '\' diagonal moves down and to the right.
     }
   }
-
+  
   return lineCoords;
 };
 
