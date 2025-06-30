@@ -197,6 +197,8 @@ export function GridDisplay({
       let effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.75; 
       if (dragAxisLocked === 'diff' || dragAxisLocked === 'sum') {
          effectiveTileShiftUnit = TILE_BASE_WIDTH * 0.6; 
+      } else if (dragAxisLocked === 'row') {
+        effectiveTileShiftUnit = TILE_BASE_WIDTH / 2;
       }
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);

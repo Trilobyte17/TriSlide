@@ -158,7 +158,7 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     const neighbors: { r: number; c: number }[] = [];
     const { orientation } = tile;
 
-    // Horizontal neighbors (left and right) are always adjacent
+    // Horizontal neighbors are always adjacent on the same row.
     if (c > 0) {
       neighbors.push({ r, c: c - 1 });
     }
@@ -166,20 +166,20 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
       neighbors.push({ r, c: c + 1 });
     }
 
-    // Vertical neighbor depends on the tile's orientation
+    // Vertical neighbor depends on the tile's orientation for a checkerboard grid.
     if (orientation === 'up') {
-        // Up-pointing triangles have a horizontal base at the top, connecting to the tile above.
-        if (r > 0) {
-            neighbors.push({ r: r - 1, c });
-        }
-    } else { // orientation === 'down'
-        // Down-pointing triangles have a horizontal base at the bottom, connecting to the tile below.
+        // An up-pointing triangle's horizontal base is on the bottom, touching the tile below.
         if (r < rows - 1) {
             neighbors.push({ r: r + 1, c });
         }
+    } else { // 'down'
+        // A down-pointing triangle's horizontal base is on the top, touching the tile above.
+        if (r > 0) {
+            neighbors.push({ r: r - 1, c });
+        }
     }
 
-    return neighbors;
+    return neighbors.filter(n => grid[n.r]?.[n.c]);
 };
 
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
@@ -222,8 +222,6 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
           if ( neighborTile &&
                 neighborTile.color === targetColor &&
-                // Important: check that the neighbor is actually adjacent geometrically
-                getNeighbors(neighborPos.r, neighborPos.c, workingGrid).some(n => n.r === currentPos.r && n.c === currentPos.c) &&
                 !visitedForCurrentComponent.has(neighborKey) ) {
             visitedForCurrentComponent.add(neighborKey);
             queue.push(neighborPos);
