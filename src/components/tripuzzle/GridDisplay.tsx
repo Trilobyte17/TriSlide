@@ -85,7 +85,7 @@ export function GridDisplay({
       return { dx: displacementX, dy: 0 };
     } else { 
       // This logic is for visual wrapping effect, angles are approximations of screen space vectors
-      const angleRad = dragAxis === 'diff' ? Math.PI * (2 / 3) : Math.PI / 3; // diff for \, sum for /
+      const angleRad = dragAxis === 'diff' ? Math.PI / 3 : Math.PI * (2 / 3); // diff for \, sum for /
       const effectiveStepDistance = TILE_BASE_WIDTH * 0.75;
       const displacementMagnitude = numElementsInLine * effectiveStepDistance;
       
@@ -165,7 +165,7 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        const axisAngleRad = newDragAxisLocked === 'row' ? 0 : (newDragAxisLocked === 'sum' ? Math.PI / 3 : (2 * Math.PI) / 3);
+        const axisAngleRad = newDragAxisLocked === 'row' ? 0 : (newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 : Math.PI / 3);
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -273,7 +273,7 @@ export function GridDisplay({
           let transformsToRender = [{ dx: 0, dy: 0, keySuffix: '-orig' }];
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && activeDrag.dragAxisLocked) {
-              const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 : (activeDrag.dragAxisLocked === 'sum' ? Math.PI / 3 : (2 * Math.PI) / 3);
+              const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 : (activeDrag.dragAxisLocked === 'sum' ? (2 * Math.PI) / 3 : Math.PI / 3);
               
               primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
               primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
