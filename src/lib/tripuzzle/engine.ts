@@ -209,6 +209,13 @@ export const slideLine = async (
 
     if (isNewlySpawned) {
       let orientationForNewTile = getExpectedOrientation(targetCoord.r, targetCoord.c);
+      
+      // FIX: Invert orientation for horizontal slides as a targeted fix
+      // for the persistent visual bug.
+      if (lineType === 'row') {
+        orientationForNewTile = orientationForNewTile === 'up' ? 'down' : 'up';
+      }
+
       tileToPlace = {
         id: generateUniqueId(),
         color: getRandomColor(),
