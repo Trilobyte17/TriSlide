@@ -82,20 +82,16 @@ export function GridDisplay({
     const numElementsInLine = lineCoords.length;
 
     if (dragAxis === 'row') {
-      const displacementX = (numElementsInLine + 1) * (TILE_BASE_WIDTH / 2);
+      const displacementX = (numElementsInLine) * (TILE_BASE_WIDTH / 2);
       return { dx: displacementX, dy: 0 };
-    } else {
-      let axisAngleRad = 0;
-      if (dragAxis === 'diff') axisAngleRad = Math.PI / 3; // 60 deg
-      if (dragAxis === 'sum') axisAngleRad = (2 * Math.PI) / 3; // 120 deg
-  
-      // The distance between adjacent diagonal tile centers is TILE_BASE_WIDTH.
-      // The visual span is roughly the number of tiles times this distance.
-      const displacementMagnitude = numElementsInLine * TILE_BASE_WIDTH;
+    } else { // Diagonals
+      const angleRad = dragAxis === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
+      const effectiveStepDistance = TILE_BASE_WIDTH * 0.75;
+      const displacementMagnitude = numElementsInLine * effectiveStepDistance;
       
       return {
-          dx: displacementMagnitude * Math.cos(axisAngleRad),
-          dy: displacementMagnitude * Math.sin(axisAngleRad)
+          dx: displacementMagnitude * Math.cos(angleRad),
+          dy: displacementMagnitude * Math.sin(angleRad)
       };
     }
   }, [TILE_BASE_WIDTH]);
@@ -143,13 +139,13 @@ export function GridDisplay({
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
           determinedAxis = 'row';
         } else if (angle > 30 && angle < 90) { // Top-left drag half
-          determinedAxis = 'diff'; 
+          determinedAxis = 'sum'; 
         } else if (angle > 90 && angle < 150) { // Top-right drag half
-          determinedAxis = 'sum'; 
-        } else if (angle < -30 && angle > -90) { // Bottom-right drag half
-          determinedAxis = 'sum'; 
-        } else if (angle < -90 && angle > -150) { // Bottom-left drag half
           determinedAxis = 'diff'; 
+        } else if (angle < -30 && angle > -90) { // Bottom-right drag half
+          determinedAxis = 'diff'; 
+        } else if (angle < -90 && angle > -150) { // Bottom-left drag half
+          determinedAxis = 'sum'; 
         }
         newDragAxisLocked = determinedAxis;
 
@@ -168,14 +164,11 @@ export function GridDisplay({
       if (newDragAxisLocked === 'row') {
         newVisualOffset = deltaX;
       } else { 
-        let axisAngleRad = 0;
-        if (newDragAxisLocked === 'diff') axisAngleRad = Math.PI / 3; // 60 deg
-        if (newDragAxisLocked === 'sum') axisAngleRad = (2 * Math.PI) / 3; // 120 deg
+        const axisAngleRad = newDragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
         
-        // Project the raw mouse movement vector onto the locked axis's unit vector
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
-        newVisualOffset = deltaX * axisUnitVectorX + deltaY * axisUnitVectorY; // Dot product
+        newVisualOffset = deltaX * axisUnitVectorX + deltaY * axisUnitVectorY;
       }
     }
     
@@ -291,9 +284,7 @@ export function GridDisplay({
                 primaryDeltaX = activeDrag.visualOffset;
                 primaryDeltaY = 0;
             } else {
-                let axisAngleRad = 0;
-                if (activeDrag.dragAxisLocked === 'diff') axisAngleRad = Math.PI / 3; // 60 deg
-                if (activeDrag.dragAxisLocked === 'sum') axisAngleRad = (2 * Math.PI) / 3; // 120 deg
+                const axisAngleRad = activeDrag.dragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
                 
                 primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
                 primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
@@ -359,3 +350,4 @@ export function GridDisplay({
     </div>
   );
 }
+
