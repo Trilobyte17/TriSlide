@@ -265,11 +265,9 @@ export default function TriSlidePage() {
         const finalStateFromProcessing = await processMatchesAndGravity(temporaryGrid, gameState.score);
         setGameState(finalStateFromProcessing);
       } else {
-        // No match from the slide. The visual snap-back is handled by GridDisplay.
-        // The main gameState.grid remains unchanged if this "try-before-commit" is strict.
-        // If we want to commit the slide even if no match, then setGameState here:
-        setGameState(prev => ({ ...prev, grid: temporaryGrid, isLoading: false }));
-        // console.log("handleSlideCommit: No matches from slide, but slide committed.");
+        // No match from the slide. Do not update the state.
+        // The visual snap-back is handled by GridDisplay resetting its local drag state.
+        // The main gameState.grid remains unchanged.
       }
 
     } catch (error) {
