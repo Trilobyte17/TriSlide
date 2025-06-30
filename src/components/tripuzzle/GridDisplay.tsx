@@ -4,8 +4,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { GridData, DiagonalType, SlideDirection, Tile as TileType } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
+import { getExpectedOrientation, getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import { Tile } from './Tile';
-import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import Image from 'next/image';
 
 interface GridDisplayProps {
@@ -31,19 +31,6 @@ interface ActiveDragState {
   visualOffset: number;
 }
 type DragAxis = 'row' | DiagonalType | null;
-
-const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  if (r < 0) r = Math.abs(r); // Handle negative row indices if they occur
-  const isEvenRow = r % 2 === 0;
-  const isEvenCol = c % 2 === 0;
-
-  if (isEvenRow) {
-    return isEvenCol ? 'up' : 'down';
-  } else {
-    return isEvenCol ? 'down' : 'up';
-  }
-};
-
 
 export function GridDisplay({
   gridData,

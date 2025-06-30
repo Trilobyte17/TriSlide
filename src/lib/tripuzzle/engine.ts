@@ -1,13 +1,18 @@
 
+"use client";
+
 import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } from './types';
 import { GAME_SETTINGS, getRandomColor } from './types';
 
-// Ensure this is the correct getExpectedOrientation for the 12x11 no-offset grid
-const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  if (r % 2 === 0) { // Even rows
-    return c % 2 === 0 ? 'up' : 'down';
-  } else { // Odd rows
-    return c % 2 === 0 ? 'down' : 'up';
+export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
+  if (r < 0) r = Math.abs(r); // Handle negative row indices if they occur
+  const isEvenRow = r % 2 === 0;
+  const isEvenCol = c % 2 === 0;
+
+  if (isEvenRow) {
+    return isEvenCol ? 'up' : 'down';
+  } else {
+    return isEvenCol ? 'down' : 'up';
   }
 };
 
@@ -210,12 +215,6 @@ export const slideLine = async (
     if (isNewlySpawned) {
       let orientationForNewTile = getExpectedOrientation(targetCoord.r, targetCoord.c);
       
-      // FIX: Invert orientation for horizontal slides as a targeted fix
-      // for the persistent visual bug.
-      if (lineType === 'row') {
-        orientationForNewTile = orientationForNewTile === 'up' ? 'down' : 'up';
-      }
-
       tileToPlace = {
         id: generateUniqueId(),
         color: getRandomColor(),
