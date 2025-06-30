@@ -6,7 +6,7 @@ import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { getExpectedOrientation } from '@/lib/tripuzzle/utils';
 import { Tile } from './Tile';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
-import Image from 'next/image'; // Import next/image
+import Image from 'next/image';
 
 interface GridDisplayProps {
   gridData: GridData;
@@ -63,7 +63,6 @@ export function GridDisplay({
   const styledContainerHeight = mathGridHeight + TILE_BORDER_WIDTH;
   const positionOffset = TILE_BORDER_WIDTH / 2;
 
-
   const getTilePosition = (r: number, c: number, virtualCol?: number) => {
     // virtualCol allows for correct positioning of wrapped tiles
     const effectiveCol = virtualCol !== undefined ? virtualCol : c;
@@ -98,7 +97,6 @@ export function GridDisplay({
     });
   }, [isProcessingMove]);
 
-
   const handleDragMove = useCallback(async (event: MouseEvent | TouchEvent) => {
     const currentDragState = activeDragRef.current;
     if (!currentDragState) return;
@@ -123,18 +121,18 @@ export function GridDisplay({
         const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
         let determinedAxis: DragAxis | null = null;
 
+        // Improved angle detection for diagonal slides
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) { 
           determinedAxis = 'row';
         } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { 
-          // Sum might be / or \ depending on interpretation, let's assume / (up-left to down-right, more positive slope visually)
-          // A drag down-left (angle ~135) or up-right (angle ~-45) is 'sum'
-          // A drag down-right (angle ~45) or up-left (angle ~-135) is 'diff'
-           if ((angle > 30 && angle < 90)) { // down-right
+          // For sum diagonal (/) - down-right or up-left movement
+          if ((angle > 30 && angle < 90)) { // down-right
                 determinedAxis = 'diff';
            } else { // up-left
                 determinedAxis = 'diff';
            }
         } else { // 90 to 150 (-150 to -90)
+             // For diff diagonal (\) - down-left or up-right movement
              if ((angle > 90 && angle < 150)) { // down-left
                 determinedAxis = 'sum';
             } else { // up-right
@@ -158,7 +156,8 @@ export function GridDisplay({
       if (newDragAxisLocked === 'row') {
         newVisualOffset = deltaX;
       } else {
-        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3); // Approximate for screen
+        // For diagonal slides, project the drag vector onto the diagonal direction
+        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3);
         newVisualOffset = deltaX * Math.cos(lineAngleRad) + deltaY * Math.sin(lineAngleRad);
       }
     }
@@ -172,7 +171,6 @@ export function GridDisplay({
       visualOffset: newVisualOffset,
     });
   }, [visualTilesPerRow]); 
-
 
   const handleDragEnd = useCallback(() => {
     const currentDragState = activeDragRef.current;
@@ -226,7 +224,6 @@ export function GridDisplay({
     };
   }, [activeDrag, handleDragMove, handleDragEnd]);
 
-
   const getLineDisplacementVector = (
     lineCoordsLength: number, 
     axis: DragAxis 
@@ -244,7 +241,6 @@ export function GridDisplay({
           };
       }
   };
-
 
   return (
     <div
@@ -276,7 +272,6 @@ export function GridDisplay({
           if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && activeDrag.dragAxisLocked) {
             const lineCoords = activeDrag.draggedLineCoords;
             const lineDisplacement = getLineDisplacementVector(lineCoords.length, activeDrag.dragAxisLocked);
-            const wrapThresholdFactor = 0.3; 
             
             let primaryDeltaX = 0, primaryDeltaY = 0;
             if (activeDrag.dragAxisLocked === 'row') {
