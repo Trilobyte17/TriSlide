@@ -35,7 +35,6 @@ export const GAME_SETTINGS = {
   GRID_WIDTH_TILES: 11, // Data array width, same as visual for this layout
   GRID_HEIGHT_TILES: 12, // Number of rows
   VISUAL_TILES_PER_ROW: 11, // Visual tiles in ALL rows for this layout
-  MAX_TRIANGLES_PER_ROW: 22, // Maximum triangles in a full row for comparison
   MIN_MATCH_LENGTH: 3,
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const,
   SCORE_PER_MATCHED_TILE: 10,
