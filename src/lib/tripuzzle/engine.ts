@@ -47,37 +47,46 @@ export const addInitialTiles = (grid: GridData): GridData => {
 };
 
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): {r: number, c: number}[] => {
-  const { rows: numGridRows } = getGridDimensions(grid);
-  const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
+  const { rows: numGridRows, cols: numGridCols } = getGridDimensions(grid);
   const lineCoords: {r: number, c: number}[] = [];
+  
+  const isValid = (r: number, c: number) => r >= 0 && r < numGridRows && c >= 0 && c < numGridCols && grid[r]?.[c] !== null;
 
-  if (startR < 0 || startR >= numGridRows || startC < 0 || startC >= numVisualCols) {
+  if (!isValid(startR, startC)) {
     return [];
   }
 
-  if (type === 'sum') {
-    const sum = startR + startC;
+  // A visual diagonal line is composed of tiles from two adjacent mathematical lines.
+  // This logic finds both sets of tiles that form the complete visual line.
+  if (type === 'sum') { // '/' diagonal
+    const sum1 = startR + startC;
+    const sum2 = sum1 - 1; // The adjacent mathematical line
+    
     for (let r = 0; r < numGridRows; r++) {
-      for (let c = 0; c < numVisualCols; c++) {
-        if (grid[r]?.[c] && r + c === sum) {
+      for (let c = 0; c < numGridCols; c++) {
+        if (isValid(r,c) && (r + c === sum1 || r + c === sum2)) {
           lineCoords.push({ r, c });
         }
       }
     }
-  } else { // type === 'diff'
-    const diff = startR - startC;
+  } else { // '\' diagonal
+    const diff1 = startR - startC;
+    const diff2 = diff1 + 1; // The adjacent mathematical line
+
     for (let r = 0; r < numGridRows; r++) {
-      for (let c = 0; c < numVisualCols; c++) {
-        if (grid[r]?.[c] && r - c === diff) {
+      for (let c = 0; c < numGridCols; c++) {
+        if (isValid(r,c) && (r - c === diff1 || r - c === diff2)) {
           lineCoords.push({ r, c });
         }
       }
     }
   }
   
-  // The order of tiles in the line matters for the slide animation.
-  // We sort by row to ensure a consistent top-to-bottom or bottom-to-top order.
-  lineCoords.sort((a, b) => a.r - b.r);
+  // Sort the coordinates to ensure they are processed in a consistent order for sliding.
+  lineCoords.sort((a, b) => {
+    if (a.r !== b.r) return a.r - b.r;
+    return a.c - b.c;
+  });
 
   return lineCoords;
 };
