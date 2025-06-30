@@ -209,7 +209,7 @@ export const slideLine = async (
 
     if (isNewlySpawned) {
       let orientationForNewTile = getExpectedOrientation(targetCoord.r, targetCoord.c);
-      if (lineType === 'sum') { // Specific flip for 'sum' diagonals
+      if (lineType === 'sum' || lineType === 'row') { // Specific flip for 'sum' diagonals and now for rows
         orientationForNewTile = orientationForNewTile === 'up' ? 'down' : 'up';
       }
       tileToPlace = {
@@ -477,5 +477,3 @@ export const checkGameOver = async (grid: GridData): Promise<boolean> => {
   }
   return true;
 };
-
-    
