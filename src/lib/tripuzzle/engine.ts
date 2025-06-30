@@ -47,96 +47,87 @@ export const addInitialTiles = (grid: GridData): GridData => {
 };
 
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): {r: number, c: number}[] => {
-  const { rows: numGridRows } = getGridDimensions(grid);
-  const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
-  const lineCoords: {r: number, c: number}[] = [];
-  
-  const isValid = (r: number, c: number) => r >= 0 && r < numGridRows && c >= 0 && c < numVisualCols && grid[r]?.[c] !== null;
+    const { rows: numGridRows } = getGridDimensions(grid);
+    const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
+    const lineCoords: { r: number; c: number }[] = [];
 
-  if (!isValid(startR, startC)) return [];
+    const isValid = (r: number, c: number) => r >= 0 && r < numGridRows && c >= 0 && c < numVisualCols && grid[r]?.[c] !== null;
 
-  let currentR = startR;
-  let currentC = startC;
-  
-  // First, traverse to the start of the line (top-left for '\', top-right for '/')
-  while (true) {
-    const tile = grid[currentR]?.[currentC];
-    if (!tile) break;
-    
-    let nextR = -1, nextC = -1;
+    if (!isValid(startR, startC)) return [];
 
-    if (type === 'sum') { // '\' diagonal, traverse up-left
-      if (tile.orientation === 'up') {
-        nextR = currentR - 1;
-        nextC = currentC;
-      } else { // 'down'
-        nextR = currentR;
-        nextC = currentC - 1;
-      }
-    } else { // 'diff', '/' diagonal, traverse up-right
-      if (tile.orientation === 'up') {
-        nextR = currentR - 1;
-        nextC = currentC;
-      } else { // 'down'
-        nextR = currentR;
-        nextC = currentC + 1;
-      }
+    let r = startR;
+    let c = startC;
+
+    // Traverse to the start of the line
+    while (true) {
+        const tile = grid[r]?.[c];
+        if (!tile) break;
+
+        let prevR = -1, prevC = -1;
+
+        if (type === 'sum') { // '/' diagonal, moving up-right
+            if (tile.orientation === 'up') {
+                prevR = r - 1; prevC = c;
+            } else { // 'down'
+                prevR = r; prevC = c + 1;
+            }
+        } else { // 'diff', '\' diagonal, moving up-left
+            if (tile.orientation === 'up') {
+                prevR = r; prevC = c - 1;
+            } else { // 'down'
+                prevR = r - 1; prevC = c;
+            }
+        }
+        
+        if (isValid(prevR, prevC)) {
+            r = prevR;
+            c = prevC;
+        } else {
+            break;
+        }
     }
 
-    if (isValid(nextR, nextC)) {
-      currentR = nextR;
-      currentC = nextC;
-    } else {
-      break;
+    // Now at the start, traverse down the line
+    const visited = new Set<string>();
+    while (isValid(r, c)) {
+        const key = `${r},${c}`;
+        if (visited.has(key)) break; // Prevent infinite loops
+        visited.add(key);
+        lineCoords.push({ r, c });
+
+        const tile = grid[r]?.[c];
+        if (!tile) break;
+
+        let nextR = -1, nextC = -1;
+        
+        if (type === 'sum') { // '/' diagonal, moving down-left
+            if (tile.orientation === 'up') {
+                nextR = r + 1; nextC = c;
+            } else { // 'down'
+                nextR = r; nextC = c - 1;
+            }
+        } else { // 'diff', '\' diagonal, moving down-right
+            if (tile.orientation === 'up') {
+                nextR = r + 1; nextC = c;
+            } else { // 'down'
+                nextR = r; nextC = c + 1;
+            }
+        }
+
+        if (isValid(nextR, nextC)) {
+            r = nextR;
+            c = nextC;
+        } else {
+            break;
+        }
     }
-  }
 
-  // Now, we are at the start. Traverse down the line and collect coordinates.
-  while (isValid(currentR, currentC)) {
-    lineCoords.push({ r: currentR, c: currentC });
-    
-    const tile = grid[currentR]?.[currentC];
-    if (!tile) break; // Should not happen due to isValid check
+    lineCoords.sort((a, b) => {
+        if (a.r !== b.r) return a.r - b.r;
+        return a.c - b.c;
+    });
 
-    let nextR = -1, nextC = -1;
-
-    if (type === 'sum') { // '\' diagonal, traverse down-right
-      if (tile.orientation === 'up') {
-        nextR = currentR;
-        nextC = currentC + 1;
-      } else { // 'down'
-        nextR = currentR + 1;
-        nextC = currentC;
-      }
-    } else { // 'diff', '/' diagonal, traverse down-left
-      if (tile.orientation === 'up') {
-        nextR = currentR;
-        nextC = currentC - 1;
-      } else { // 'down'
-        nextR = currentR + 1;
-        nextC = currentC;
-      }
-    }
-    
-    // Check if the next tile is still on the same line, to prevent jumping rows
-    const isNextOnSameLine = (type === 'sum' && grid[nextR]?.[nextC]) || (type === 'diff' && grid[nextR]?.[nextC]);
-
-    if (isValid(nextR, nextC) && isNextOnSameLine) {
-        // To avoid infinite loops on invalid logic, break if we don't advance
-        if (nextR === currentR && nextC === currentC) break;
-        currentR = nextR;
-        currentC = nextC;
-    } else {
-        break;
-    }
-  }
-
-  lineCoords.sort((a, b) => {
-    if (a.r !== b.r) return a.r - b.r;
-    return a.c - b.c;
-  });
-
-  return lineCoords;
+    return lineCoords;
 };
 
 
@@ -402,5 +393,3 @@ export const checkGameOver = (grid: GridData): boolean => {
   }
   return true;
 };
-
-    

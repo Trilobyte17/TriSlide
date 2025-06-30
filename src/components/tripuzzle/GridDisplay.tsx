@@ -115,10 +115,10 @@ export function GridDisplay({
             determinedAxis = 'row';
         } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) {
             // This is a '\' diagonal (top-left to bottom-right or vice versa)
-            determinedAxis = 'sum';
+            determinedAxis = 'diff';
         } else if ((angle > 90 && angle < 150) || (angle < -30 && angle > -90)) {
             // This is a '/' diagonal (top-right to bottom-left or vice versa)
-            determinedAxis = 'diff';
+            determinedAxis = 'sum';
         }
 
         newDragAxisLocked = determinedAxis;
@@ -135,10 +135,10 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        // `sum` is '\' which is ~60deg. `diff` is '/' which is ~120deg.
+        // `sum` is '/' which is ~120deg. `diff` is '\' which is ~60deg.
         const axisAngleRad = newDragAxisLocked === 'row' ? 0 
-                             : newDragAxisLocked === 'sum' ? Math.PI / 3 
-                             : (2 * Math.PI) / 3;
+                             : newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 
+                             : Math.PI / 3;
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -176,8 +176,7 @@ export function GridDisplay({
       if (dragAxisLocked === 'row') {
         effectiveTileShiftUnit = TILE_BASE_WIDTH;
       } else {
-        // This is an approximation of the distance between tile centers along a diagonal
-        effectiveTileShiftUnit = Math.sqrt(Math.pow(TILE_BASE_WIDTH * 0.75, 2) + Math.pow(TILE_HEIGHT * 0.5, 2));
+        effectiveTileShiftUnit = TILE_BASE_WIDTH * (Math.sqrt(7) / 2);
       }
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
@@ -199,7 +198,7 @@ export function GridDisplay({
         }, 0);
       }
     }
-  }, [TILE_BASE_WIDTH, TILE_HEIGHT]); 
+  }, [TILE_BASE_WIDTH]); 
 
   useEffect(() => {
     if (activeDrag) {
@@ -243,8 +242,8 @@ export function GridDisplay({
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.dragAxisLocked) {
               const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 
-                                 : activeDrag.dragAxisLocked === 'sum' ? Math.PI / 3 
-                                 : (2 * Math.PI) / 3;
+                                 : activeDrag.dragAxisLocked === 'sum' ? (2 * Math.PI) / 3 
+                                 : Math.PI / 3;
               
               deltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
               deltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
