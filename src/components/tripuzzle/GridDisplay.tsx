@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/types';
+import type { GridData, DiagonalType, SlideDirection, Tile as TileType } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { Tile } from './Tile';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
@@ -31,6 +31,21 @@ interface ActiveDragState {
   visualOffset: number;
 }
 type DragAxis = 'row' | DiagonalType | null;
+
+const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
+  if (r < 0 || c < 0) {
+      const isEvenRow = r % 2 === 0;
+      const isEvenCol = c % 2 === 0;
+      if(isEvenRow) return isEvenCol ? 'up' : 'down';
+      return isEvenCol ? 'down' : 'up';
+  }
+  if (r % 2 === 0) { 
+    return c % 2 === 0 ? 'up' : 'down';
+  } else { 
+    return c % 2 === 0 ? 'down' : 'up';
+  }
+};
+
 
 export function GridDisplay({
   gridData,
@@ -82,7 +97,7 @@ export function GridDisplay({
     const numElementsInLine = lineCoords.length;
 
     if (dragAxis === 'row') {
-      const displacementX = (numElementsInLine) * (TILE_BASE_WIDTH / 2);
+      const displacementX = (numElementsInLine + 1) * (TILE_BASE_WIDTH / 2);
       return { dx: displacementX, dy: 0 };
     } else { // Diagonals
       const angleRad = dragAxis === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
@@ -161,15 +176,11 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-      if (newDragAxisLocked === 'row') {
-        newVisualOffset = deltaX;
-      } else { 
-        const axisAngleRad = newDragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
+        const axisAngleRad = newDragAxisLocked === 'row' ? 0 : (newDragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3);
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
         newVisualOffset = deltaX * axisUnitVectorX + deltaY * axisUnitVectorY;
-      }
     }
     
     setActiveDrag(prevState => prevState ? ({
@@ -271,41 +282,34 @@ export function GridDisplay({
           const { x: baseX, y: baseY } = getTilePosition(rIndex, cIndex);
           
           const isPartOfActiveDrag = activeDrag?.draggedLineCoords?.some(coord => coord.r === rIndex && coord.c === cIndex);
-          const currentRenderTileData = isPartOfActiveDrag ? (gridDataRef.current[rIndex]?.[cIndex] || tileData) : tileData;
+          const currentRenderTileData = (isPartOfActiveDrag && gridDataRef.current[rIndex]?.[cIndex]) || tileData;
           
           if (!currentRenderTileData) return null;
 
           let transformsToRender = [{ dx: 0, dy: 0, keySuffix: '-orig' }];
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && activeDrag.dragAxisLocked) {
-            let primaryDeltaX = 0, primaryDeltaY = 0;
-
-            if (activeDrag.dragAxisLocked === 'row') {
-                primaryDeltaX = activeDrag.visualOffset;
-                primaryDeltaY = 0;
-            } else {
-                const axisAngleRad = activeDrag.dragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
-                
-                primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
-                primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
-            }
+              const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 : (activeDrag.dragAxisLocked === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3);
+              
+              const primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
+              const primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
             
-            transformsToRender[0] = { dx: primaryDeltaX, dy: primaryDeltaY, keySuffix: '-drag' };
+              transformsToRender[0] = { dx: primaryDeltaX, dy: primaryDeltaY, keySuffix: '-drag' };
 
-            const lineDisplacement = getLineDisplacementVector(activeDrag.draggedLineCoords, activeDrag.dragAxisLocked);
+              const lineDisplacement = getLineDisplacementVector(activeDrag.draggedLineCoords, activeDrag.dragAxisLocked);
 
-            if (Math.abs(activeDrag.visualOffset) > wrapDisplayThreshold) {
-                if (activeDrag.visualOffset > 0) { // Dragging right/forward
-                    transformsToRender.push({ dx: primaryDeltaX - lineDisplacement.dx, dy: primaryDeltaY - lineDisplacement.dy, keySuffix: '-wrap-past' });
-                }
-                if (activeDrag.visualOffset < 0) { // Dragging left/backward
-                    transformsToRender.push({ dx: primaryDeltaX + lineDisplacement.dx, dy: primaryDeltaY + lineDisplacement.dy, keySuffix: '-wrap-future' });
-                }
-            }
+              if (Math.abs(activeDrag.visualOffset) > wrapDisplayThreshold) {
+                  if (activeDrag.visualOffset > 0) {
+                      transformsToRender.push({ dx: primaryDeltaX - lineDisplacement.dx, dy: primaryDeltaY - lineDisplacement.dy, keySuffix: '-wrap-past' });
+                  }
+                  if (activeDrag.visualOffset < 0) {
+                      transformsToRender.push({ dx: primaryDeltaX + lineDisplacement.dx, dy: primaryDeltaY + lineDisplacement.dy, keySuffix: '-wrap-future' });
+                  }
+              }
           }
           
           return (
-            <React.Fragment key={`${rIndex}-${cIndex}-${currentRenderTileData.id}`}>
+            <React.Fragment key={`${rIndex}-${cIndex}-${currentRenderTileData.id || 'null'}`}>
               {transformsToRender.map(transform => {
                  let tileStyle: React.CSSProperties = {
                     position: 'absolute',
@@ -330,6 +334,24 @@ export function GridDisplay({
                     tileStyle.zIndex = 5; 
                  }
                  
+                 let tileToRender: TileType = { ...currentRenderTileData };
+
+                 if (activeDrag && activeDrag.draggedLineCoords && isPartOfActiveDrag && transform.keySuffix.startsWith('-wrap')) {
+                   const lineType = activeDrag.dragAxisLocked;
+                   const numElementsInLine = activeDrag.draggedLineCoords.length;
+                 
+                   if (lineType === 'row') {
+                     let conceptualCol = cIndex;
+                     if (transform.keySuffix.endsWith('-past')) { // Wrapped from right to left
+                       conceptualCol = cIndex - numElementsInLine;
+                     } else if (transform.keySuffix.endsWith('-future')) { // Wrapped from left to right
+                       conceptualCol = cIndex + numElementsInLine;
+                     }
+                     tileToRender.orientation = getExpectedOrientation(rIndex, conceptualCol);
+                   }
+                   // Note: Diagonal orientation fix would be more complex and is omitted for now
+                 }
+
                  return (
                    <div
                      key={currentRenderTileData.id + transform.keySuffix} 
@@ -339,7 +361,7 @@ export function GridDisplay({
                      role="gridcell"
                      aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} with color ${currentRenderTileData.color}`}
                    >
-                     <Tile tile={currentRenderTileData} />
+                     <Tile tile={tileToRender} />
                    </div>
                  );
               })}
@@ -350,4 +372,3 @@ export function GridDisplay({
     </div>
   );
 }
-
