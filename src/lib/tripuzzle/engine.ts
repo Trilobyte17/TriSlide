@@ -53,31 +53,84 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
   
   const isValid = (r: number, c: number) => r >= 0 && r < numGridRows && c >= 0 && c < numVisualCols && grid[r]?.[c] !== null;
 
-  if (!isValid(startR, startC)) {
-    return [];
+  if (!isValid(startR, startC)) return [];
+
+  let currentR = startR;
+  let currentC = startC;
+  
+  // First, traverse to the start of the line (top-left for '\', top-right for '/')
+  while (true) {
+    const tile = grid[currentR]?.[currentC];
+    if (!tile) break;
+    
+    let nextR = -1, nextC = -1;
+
+    if (type === 'sum') { // '\' diagonal, traverse up-left
+      if (tile.orientation === 'up') {
+        nextR = currentR - 1;
+        nextC = currentC;
+      } else { // 'down'
+        nextR = currentR;
+        nextC = currentC - 1;
+      }
+    } else { // 'diff', '/' diagonal, traverse up-right
+      if (tile.orientation === 'up') {
+        nextR = currentR - 1;
+        nextC = currentC;
+      } else { // 'down'
+        nextR = currentR;
+        nextC = currentC + 1;
+      }
+    }
+
+    if (isValid(nextR, nextC)) {
+      currentR = nextR;
+      currentC = nextC;
+    } else {
+      break;
+    }
   }
 
-  if (type === 'sum') { // '\' diagonal, where r+c is constant
-    const sum = startR + startC;
-    for (let r = 0; r < numGridRows; r++) {
-      for (let c = 0; c < numVisualCols; c++) {
-        if (isValid(r, c) && (r + c === sum)) {
-          lineCoords.push({ r, c });
-        }
+  // Now, we are at the start. Traverse down the line and collect coordinates.
+  while (isValid(currentR, currentC)) {
+    lineCoords.push({ r: currentR, c: currentC });
+    
+    const tile = grid[currentR]?.[currentC];
+    if (!tile) break; // Should not happen due to isValid check
+
+    let nextR = -1, nextC = -1;
+
+    if (type === 'sum') { // '\' diagonal, traverse down-right
+      if (tile.orientation === 'up') {
+        nextR = currentR;
+        nextC = currentC + 1;
+      } else { // 'down'
+        nextR = currentR + 1;
+        nextC = currentC;
+      }
+    } else { // 'diff', '/' diagonal, traverse down-left
+      if (tile.orientation === 'up') {
+        nextR = currentR;
+        nextC = currentC - 1;
+      } else { // 'down'
+        nextR = currentR + 1;
+        nextC = currentC;
       }
     }
-  } else { // 'diff' corresponds to '/' diagonal, where r-c is constant
-    const diff = startR - startC;
-    for (let r = 0; r < numGridRows; r++) {
-      for (let c = 0; c < numVisualCols; c++) {
-        if (isValid(r, c) && (r - c === diff)) {
-          lineCoords.push({ r, c });
-        }
-      }
+    
+    // Check if the next tile is still on the same line, to prevent jumping rows
+    const isNextOnSameLine = (type === 'sum' && grid[nextR]?.[nextC]) || (type === 'diff' && grid[nextR]?.[nextC]);
+
+    if (isValid(nextR, nextC) && isNextOnSameLine) {
+        // To avoid infinite loops on invalid logic, break if we don't advance
+        if (nextR === currentR && nextC === currentC) break;
+        currentR = nextR;
+        currentC = nextC;
+    } else {
+        break;
     }
   }
-  
-  // Sorting is important for the slideLine function to work correctly
+
   lineCoords.sort((a, b) => {
     if (a.r !== b.r) return a.r - b.r;
     return a.c - b.c;
@@ -155,25 +208,26 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     const neighbors: { r: number; c: number }[] = [];
 
-    // Horizontal neighbors are always the same.
-    if (c > 0) neighbors.push({ r, c: c - 1 });
-    if (c < cols - 1) neighbors.push({ r, c: c + 1 });
+    const isValid = (nr: number, nc: number) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr]?.[nc];
+
+    // Common horizontal neighbors
+    if (isValid(r, c - 1)) neighbors.push({ r, c: c - 1 });
+    if (isValid(r, c + 1)) neighbors.push({ r, c: c + 1 });
 
     // The third neighbor's position depends on the tile's orientation ('up' or 'down' pointing).
-    // This logic relies on the checkerboard pattern established by getExpectedOrientation.
     if (tile.orientation === 'up') {
-        // Up-pointing triangles have a flat top edge, so their third neighbor is above.
-        if (r > 0) {
+        // Up-pointing triangles have a neighbor above.
+        if (isValid(r - 1, c)) {
             neighbors.push({ r: r - 1, c });
         }
     } else { // 'down'
-        // Down-pointing triangles have a flat bottom edge, so their third neighbor is below.
-        if (r < rows - 1) {
+        // Down-pointing triangles have a neighbor below.
+        if (isValid(r + 1, c)) {
             neighbors.push({ r: r + 1, c });
         }
     }
 
-    return neighbors.filter(n => grid[n.r]?.[n.c]);
+    return neighbors;
 };
 
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
@@ -348,3 +402,5 @@ export const checkGameOver = (grid: GridData): boolean => {
   }
   return true;
 };
+
+    
