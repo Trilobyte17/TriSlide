@@ -249,39 +249,40 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
 
     const { rows } = getGridDimensions(grid);
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
-    const isUp = tile.orientation === 'up';
     const neighbors: { r: number; c: number }[] = [];
+    const { orientation } = tile;
 
-    // Neighbor to the left
+    // Horizontal neighbors (left and right)
+    // These neighbors must have the opposite orientation.
     if (c > 0) {
         const leftNeighbor = grid[r]?.[c - 1];
-        if (leftNeighbor && leftNeighbor.orientation !== tile.orientation) {
+        if (leftNeighbor && leftNeighbor.orientation !== orientation) {
             neighbors.push({ r, c: c - 1 });
         }
     }
-
-    // Neighbor to the right
     if (c < cols - 1) {
         const rightNeighbor = grid[r]?.[c + 1];
-        if (rightNeighbor && rightNeighbor.orientation !== tile.orientation) {
+        if (rightNeighbor && rightNeighbor.orientation !== orientation) {
             neighbors.push({ r, c: c + 1 });
         }
     }
 
-    if (isUp) {
-        // Neighbor above
-        if (r > 0) {
-            const topNeighbor = grid[r - 1]?.[c];
-            if (topNeighbor && topNeighbor.orientation === 'down') {
-                neighbors.push({ r: r - 1, c });
-            }
-        }
-    } else { // 'down'
-        // Neighbor below
+    // Vertical neighbor (top or bottom)
+    // This neighbor must also have the opposite orientation.
+    if (orientation === 'up') {
+        // Up-pointing triangles have a neighbor BELOW them.
         if (r < rows - 1) {
             const bottomNeighbor = grid[r + 1]?.[c];
-            if (bottomNeighbor && bottomNeighbor.orientation === 'up') {
+            if (bottomNeighbor && bottomNeighbor.orientation === 'down') {
                 neighbors.push({ r: r + 1, c });
+            }
+        }
+    } else { // orientation === 'down'
+        // Down-pointing triangles have a neighbor ABOVE them.
+        if (r > 0) {
+            const topNeighbor = grid[r - 1]?.[c];
+            if (topNeighbor && topNeighbor.orientation === 'up') {
+                neighbors.push({ r: r - 1, c });
             }
         }
     }
@@ -458,3 +459,5 @@ export const checkGameOver = (grid: GridData): boolean => {
   }
   return true;
 };
+
+    
