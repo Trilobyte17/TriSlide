@@ -33,16 +33,14 @@ interface ActiveDragState {
 type DragAxis = 'row' | DiagonalType | null;
 
 const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  if (r < 0 || c < 0) {
-      const isEvenRow = r % 2 === 0;
-      const isEvenCol = c % 2 === 0;
-      if(isEvenRow) return isEvenCol ? 'up' : 'down';
-      return isEvenCol ? 'down' : 'up';
-  }
-  if (r % 2 === 0) { 
-    return c % 2 === 0 ? 'up' : 'down';
-  } else { 
-    return c % 2 === 0 ? 'down' : 'up';
+  if (r < 0) r = Math.abs(r); // Handle negative row indices if they occur
+  const isEvenRow = r % 2 === 0;
+  const isEvenCol = c % 2 === 0;
+
+  if (isEvenRow) {
+    return isEvenCol ? 'up' : 'down';
+  } else {
+    return isEvenCol ? 'down' : 'up';
   }
 };
 
@@ -97,7 +95,7 @@ export function GridDisplay({
     const numElementsInLine = lineCoords.length;
 
     if (dragAxis === 'row') {
-      const displacementX = (numElementsInLine + 1) * (TILE_BASE_WIDTH / 2);
+      const displacementX = numElementsInLine * (TILE_BASE_WIDTH / 2);
       return { dx: displacementX, dy: 0 };
     } else { // Diagonals
       const angleRad = dragAxis === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
@@ -282,9 +280,8 @@ export function GridDisplay({
           const { x: baseX, y: baseY } = getTilePosition(rIndex, cIndex);
           
           const isPartOfActiveDrag = activeDrag?.draggedLineCoords?.some(coord => coord.r === rIndex && coord.c === cIndex);
-          const currentRenderTileData = (isPartOfActiveDrag && gridDataRef.current[rIndex]?.[cIndex]) || tileData;
           
-          if (!currentRenderTileData) return null;
+          if (!tileData) return null;
 
           let transformsToRender = [{ dx: 0, dy: 0, keySuffix: '-orig' }];
 
@@ -309,7 +306,7 @@ export function GridDisplay({
           }
           
           return (
-            <React.Fragment key={`${rIndex}-${cIndex}-${currentRenderTileData.id || 'null'}`}>
+            <React.Fragment key={`${rIndex}-${cIndex}-${tileData.id || 'null'}`}>
               {transformsToRender.map(transform => {
                  let tileStyle: React.CSSProperties = {
                     position: 'absolute',
@@ -334,7 +331,7 @@ export function GridDisplay({
                     tileStyle.zIndex = 5; 
                  }
                  
-                 let tileToRender: TileType = { ...currentRenderTileData };
+                 let tileToRender: TileType = { ...tileData };
 
                  if (activeDrag && activeDrag.draggedLineCoords && isPartOfActiveDrag && transform.keySuffix.startsWith('-wrap')) {
                    const lineType = activeDrag.dragAxisLocked;
@@ -349,17 +346,16 @@ export function GridDisplay({
                      }
                      tileToRender.orientation = getExpectedOrientation(rIndex, conceptualCol);
                    }
-                   // Note: Diagonal orientation fix would be more complex and is omitted for now
                  }
 
                  return (
                    <div
-                     key={currentRenderTileData.id + transform.keySuffix} 
+                     key={tileData.id + transform.keySuffix} 
                      style={tileStyle}
                      onMouseDown={(e) => handleDragStart(e, rIndex, cIndex)}
                      onTouchStart={(e) => handleDragStart(e, rIndex, cIndex)}
                      role="gridcell"
-                     aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} with color ${currentRenderTileData.color}`}
+                     aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} with color ${tileData.color}`}
                    >
                      <Tile tile={tileToRender} />
                    </div>
