@@ -221,9 +221,19 @@ export default function TriSlidePage() {
       const { hasMatches: slideCausedMatches } = findAndMarkMatches(temporaryGrid);
 
       if (slideCausedMatches) {
+        // First, update the grid to the slid state so the user sees the move complete.
+        setGameState(prev => ({...prev, grid: temporaryGrid}));
+        
+        // Wait for the slide animation to finish before processing matches.
+        await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION + 50));
+        
+        // Now, process the matches from the new board state.
         const finalStateFromProcessing = await processMatchesAndGravity(temporaryGrid, gameState.score);
         setGameState(finalStateFromProcessing);
       } else {
+        // No match found, so the move is invalid.
+        // The visual "snap back" is handled by GridDisplay resetting its drag state
+        // while the underlying gameState.grid remains unchanged.
       }
 
     } catch (error) {
