@@ -85,24 +85,17 @@ export function GridDisplay({
       const displacementX = (numElementsInLine + 1) * (TILE_BASE_WIDTH / 2);
       return { dx: displacementX, dy: 0 };
     } else {
-      const effectiveStepDistance = TILE_BASE_WIDTH * 0.75; 
-      const totalLength = numElementsInLine * effectiveStepDistance;
+      let axisAngleRad = 0;
+      if (dragAxis === 'diff') axisAngleRad = Math.PI / 3; // 60 deg
+      if (dragAxis === 'sum') axisAngleRad = (2 * Math.PI) / 3; // 120 deg
+  
+      // The distance between adjacent diagonal tile centers is TILE_BASE_WIDTH.
+      // The visual span is roughly the number of tiles times this distance.
+      const displacementMagnitude = numElementsInLine * TILE_BASE_WIDTH;
       
-      let angleRad = dragAxis === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3);
-
-      if (activeDragRef.current && (activeDragRef.current.currentScreenX !== activeDragRef.current.startScreenX || activeDragRef.current.currentScreenY !== activeDragRef.current.startScreenY)) {
-          const dX = activeDragRef.current.currentScreenX - activeDragRef.current.startScreenX;
-          const dY = activeDragRef.current.currentScreenY - activeDragRef.current.startScreenY;
-          angleRad = Math.atan2(dY, dX);
-      } else if (dragAxis === 'sum') {
-          angleRad = (Math.PI * 2 / 3); 
-      } else {
-          angleRad = (Math.PI / 3);
-      }
-
       return {
-        dx: totalLength * Math.cos(angleRad),
-        dy: totalLength * Math.sin(angleRad)
+          dx: displacementMagnitude * Math.cos(axisAngleRad),
+          dy: displacementMagnitude * Math.sin(axisAngleRad)
       };
     }
   }, [TILE_BASE_WIDTH]);
@@ -149,13 +142,13 @@ export function GridDisplay({
 
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
           determinedAxis = 'row';
-        } else if (angle > 30 && angle < 90) {
+        } else if (angle > 30 && angle < 90) { // Top-left drag half
           determinedAxis = 'diff'; 
-        } else if (angle > 90 && angle < 150) {
+        } else if (angle > 90 && angle < 150) { // Top-right drag half
           determinedAxis = 'sum'; 
-        } else if (angle < -30 && angle > -90) {
+        } else if (angle < -30 && angle > -90) { // Bottom-right drag half
           determinedAxis = 'sum'; 
-        } else if (angle < -90 && angle > -150) {
+        } else if (angle < -90 && angle > -150) { // Bottom-left drag half
           determinedAxis = 'diff'; 
         }
         newDragAxisLocked = determinedAxis;
@@ -175,8 +168,14 @@ export function GridDisplay({
       if (newDragAxisLocked === 'row') {
         newVisualOffset = deltaX;
       } else { 
-        const dragAngleRad = Math.atan2(deltaY, deltaX);
-        newVisualOffset = deltaX * Math.cos(dragAngleRad) + deltaY * Math.sin(dragAngleRad);
+        let axisAngleRad = 0;
+        if (newDragAxisLocked === 'diff') axisAngleRad = Math.PI / 3; // 60 deg
+        if (newDragAxisLocked === 'sum') axisAngleRad = (2 * Math.PI) / 3; // 120 deg
+        
+        // Project the raw mouse movement vector onto the locked axis's unit vector
+        const axisUnitVectorX = Math.cos(axisAngleRad);
+        const axisUnitVectorY = Math.sin(axisAngleRad);
+        newVisualOffset = deltaX * axisUnitVectorX + deltaY * axisUnitVectorY; // Dot product
       }
     }
     
@@ -250,8 +249,7 @@ export function GridDisplay({
       document.removeEventListener('touchcancel', handleDragEnd);
     };
   }, [activeDrag, handleDragMove, handleDragEnd]);
-
-  const lineDisplacement = getLineDisplacementVector(activeDrag?.draggedLineCoords || null, activeDrag?.dragAxisLocked || null);
+  
   const wrapDisplayThreshold = TILE_BASE_WIDTH / 2.5;
 
   return (
@@ -280,39 +278,41 @@ export function GridDisplay({
           const { x: baseX, y: baseY } = getTilePosition(rIndex, cIndex);
           
           const isPartOfActiveDrag = activeDrag?.draggedLineCoords?.some(coord => coord.r === rIndex && coord.c === cIndex);
-          const originalTileAtCoord = gridDataRef.current[rIndex]?.[cIndex];
+          const currentRenderTileData = isPartOfActiveDrag ? (gridDataRef.current[rIndex]?.[cIndex] || tileData) : tileData;
+          
+          if (!currentRenderTileData) return null;
 
           let transformsToRender = [{ dx: 0, dy: 0, keySuffix: '-orig' }];
 
-          if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && (lineDisplacement.dx !== 0 || lineDisplacement.dy !== 0)) {
+          if (activeDrag && isPartOfActiveDrag && activeDrag.draggedLineCoords && activeDrag.dragAxisLocked) {
             let primaryDeltaX = 0, primaryDeltaY = 0;
-            if (activeDrag.dragAxisLocked) {
-              const dX = activeDrag.currentScreenX - activeDrag.startScreenX;
-              const dY = activeDrag.currentScreenY - activeDrag.startScreenY;
-              const dragAngleRad = (dX === 0 && dY === 0) ? 0 : Math.atan2(dY, dX);
 
-              if (activeDrag.dragAxisLocked === 'row') {
-                  primaryDeltaX = activeDrag.visualOffset;
-                  primaryDeltaY = 0;
-              } else {
-                  primaryDeltaX = activeDrag.visualOffset * Math.cos(dragAngleRad);
-                  primaryDeltaY = activeDrag.visualOffset * Math.sin(dragAngleRad);
-              }
+            if (activeDrag.dragAxisLocked === 'row') {
+                primaryDeltaX = activeDrag.visualOffset;
+                primaryDeltaY = 0;
+            } else {
+                let axisAngleRad = 0;
+                if (activeDrag.dragAxisLocked === 'diff') axisAngleRad = Math.PI / 3; // 60 deg
+                if (activeDrag.dragAxisLocked === 'sum') axisAngleRad = (2 * Math.PI) / 3; // 120 deg
+                
+                primaryDeltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
+                primaryDeltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
             }
+            
             transformsToRender[0] = { dx: primaryDeltaX, dy: primaryDeltaY, keySuffix: '-drag' };
 
-            if (activeDrag.visualOffset > wrapDisplayThreshold) {
-              transformsToRender.push({ dx: primaryDeltaX - lineDisplacement.dx, dy: primaryDeltaY - lineDisplacement.dy, keySuffix: '-wrap-past' });
-            }
-            if (activeDrag.visualOffset < -wrapDisplayThreshold) {
-              transformsToRender.push({ dx: primaryDeltaX + lineDisplacement.dx, dy: primaryDeltaY + lineDisplacement.dy, keySuffix: '-wrap-future' });
+            const lineDisplacement = getLineDisplacementVector(activeDrag.draggedLineCoords, activeDrag.dragAxisLocked);
+
+            if (Math.abs(activeDrag.visualOffset) > wrapDisplayThreshold) {
+                if (activeDrag.visualOffset > 0) { // Dragging right/forward
+                    transformsToRender.push({ dx: primaryDeltaX - lineDisplacement.dx, dy: primaryDeltaY - lineDisplacement.dy, keySuffix: '-wrap-past' });
+                }
+                if (activeDrag.visualOffset < 0) { // Dragging left/backward
+                    transformsToRender.push({ dx: primaryDeltaX + lineDisplacement.dx, dy: primaryDeltaY + lineDisplacement.dy, keySuffix: '-wrap-future' });
+                }
             }
           }
           
-          const currentRenderTileData = isPartOfActiveDrag ? originalTileAtCoord : tileData;
-
-          if (!currentRenderTileData) return null;
-
           return (
             <React.Fragment key={`${rIndex}-${cIndex}-${currentRenderTileData.id}`}>
               {transformsToRender.map(transform => {
