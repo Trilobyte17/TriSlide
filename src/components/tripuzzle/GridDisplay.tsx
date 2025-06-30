@@ -6,7 +6,6 @@ import type { GridData, DiagonalType, SlideDirection, Tile as TileType } from '@
 import { GAME_SETTINGS, getExpectedOrientation } from '@/lib/tripuzzle/types';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import { Tile } from './Tile';
-import Image from 'next/image';
 
 interface GridDisplayProps {
   gridData: GridData;
@@ -84,7 +83,7 @@ export function GridDisplay({
     if (dragAxis === 'row') {
       const displacementX = numElementsInLine * (TILE_BASE_WIDTH / 2);
       return { dx: displacementX, dy: 0 };
-    } else { // Diagonals
+    } else { 
       const angleRad = dragAxis === 'diff' ? (2 * Math.PI) / 3 : Math.PI / 3;
       const effectiveStepDistance = TILE_BASE_WIDTH * 0.75;
       const displacementMagnitude = numElementsInLine * effectiveStepDistance;
@@ -116,7 +115,7 @@ export function GridDisplay({
     });
   }, [isProcessingMove]);
 
-  const handleDragMove = useCallback(async (event: MouseEvent | TouchEvent) => {
+  const handleDragMove = useCallback((event: MouseEvent | TouchEvent) => {
     const currentDragState = activeDragRef.current;
     if (!currentDragState || !gridDataRef.current) return;
 
@@ -138,13 +137,13 @@ export function GridDisplay({
 
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
           determinedAxis = 'row';
-        } else if (angle > 30 && angle < 90) { // Top-left drag half
+        } else if (angle > 30 && angle < 90) { 
           determinedAxis = 'sum'; 
-        } else if (angle > 90 && angle < 150) { // Top-right drag half
+        } else if (angle > 90 && angle < 150) { 
           determinedAxis = 'diff'; 
-        } else if (angle < -30 && angle > -90) { // Bottom-right drag half
+        } else if (angle < -30 && angle > -90) { 
           determinedAxis = 'diff'; 
-        } else if (angle < -90 && angle > -150) { // Bottom-left drag half
+        } else if (angle < -90 && angle > -150) { 
           determinedAxis = 'sum'; 
         }
         newDragAxisLocked = determinedAxis;
@@ -155,7 +154,7 @@ export function GridDisplay({
                 c: colIdx
             }));
         } else if (determinedAxis && gridDataRef.current) {
-            newDraggedLineCoords = await getTilesOnDiagonalEngine(gridDataRef.current, currentDragState.startTileR, currentDragState.startTileC, determinedAxis);
+            newDraggedLineCoords = getTilesOnDiagonalEngine(gridDataRef.current, currentDragState.startTileR, currentDragState.startTileC, determinedAxis);
         }
       }
     }
@@ -243,7 +242,7 @@ export function GridDisplay({
 
   return (
     <div
-      className="relative rounded-lg shadow-inner select-none touch-none"
+      className="relative rounded-lg shadow-inner select-none touch-none bg-muted"
       role="grid"
       aria-label="TriSlide game grid"
       style={{
@@ -253,15 +252,6 @@ export function GridDisplay({
       }}
       ref={gridRef}
     >
-      <Image
-        src="https://placehold.co/240x420.png" 
-        alt="Game board background"
-        fill
-        style={{ objectFit: 'cover' }}
-        className="z-0"
-        data-ai-hint="dark texture"
-        priority
-      />
       {gridData.map((row, rIndex) => {
         return row.slice(0, visualTilesPerRow).map((tileData, cIndex) => {
           const { x: baseX, y: baseY } = getTilePosition(rIndex, cIndex);
@@ -326,9 +316,9 @@ export function GridDisplay({
                  
                    if (lineType === 'row') {
                      let conceptualCol = cIndex;
-                     if (transform.keySuffix.endsWith('-past')) { // Wrapped from right to left
+                     if (transform.keySuffix.endsWith('-past')) { 
                        conceptualCol = cIndex - numElementsInLine;
-                     } else if (transform.keySuffix.endsWith('-future')) { // Wrapped from left to right
+                     } else if (transform.keySuffix.endsWith('-future')) { 
                        conceptualCol = cIndex + numElementsInLine;
                      }
                      tileToRender.orientation = getExpectedOrientation(rIndex, conceptualCol);
