@@ -110,18 +110,21 @@ export function GridDisplay({
       if (dragDistance > GAME_SETTINGS.DRAG_THRESHOLD) {
         const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
         let determinedAxis: DragAxis | null = null;
-
+        
+        // The grid has 3 axes of movement. Horizontal (0/180 deg),
+        // and two diagonals at roughly 60/120 degrees.
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
-          determinedAxis = 'row';
-        } else if (angle > 30 && angle < 90) { 
-          determinedAxis = 'diff'; 
-        } else if (angle > 90 && angle < 150) { 
-          determinedAxis = 'sum'; 
-        } else if (angle < -30 && angle > -90) { 
-          determinedAxis = 'sum'; 
-        } else if (angle < -90 && angle > -150) { 
-          determinedAxis = 'diff'; 
+            determinedAxis = 'row';
+        } else if (angle > 30 && angle < 90) { // top-left to bottom-right -> \
+            determinedAxis = 'diff';
+        } else if (angle > 90 && angle < 150) { // top-right to bottom-left -> /
+            determinedAxis = 'sum';
+        } else if (angle < -30 && angle > -90) { // bottom-left to top-right -> \
+            determinedAxis = 'diff';
+        } else if (angle < -90 && angle > -150) { // bottom-right to top-left -> /
+            determinedAxis = 'sum';
         }
+
         newDragAxisLocked = determinedAxis;
 
         if (determinedAxis === 'row') {
@@ -136,7 +139,7 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        const axisAngleRad = newDragAxisLocked === 'row' ? 0 : (newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 : Math.PI / 3);
+        const axisAngleRad = newDragAxisLocked === 'row' ? 0 : newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 : Math.PI / 3;
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -174,9 +177,7 @@ export function GridDisplay({
       if (dragAxisLocked === 'row') {
         effectiveTileShiftUnit = TILE_BASE_WIDTH / 2;
       } else {
-        // The distance between the centers of two adjacent tiles along a diagonal axis
-        // is approximately the width of a tile.
-        effectiveTileShiftUnit = TILE_BASE_WIDTH;
+        effectiveTileShiftUnit = Math.sqrt(Math.pow(TILE_BASE_WIDTH * 0.75, 2) + Math.pow(TILE_HEIGHT * 0.5, 2));
       }
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
@@ -198,7 +199,7 @@ export function GridDisplay({
         }, 0);
       }
     }
-  }, [TILE_BASE_WIDTH]); 
+  }, [TILE_BASE_WIDTH, TILE_HEIGHT]); 
 
   useEffect(() => {
     if (activeDrag) {

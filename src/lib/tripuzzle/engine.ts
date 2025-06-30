@@ -56,33 +56,26 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     return [];
   }
 
-  // A visual diagonal line is composed of tiles from two adjacent mathematical lines.
-  // This logic finds both sets of tiles that form the complete visual line.
   if (type === 'sum') { // '/' diagonal
-    const sum1 = startR + startC;
-    const sum2 = sum1 - 1; // The adjacent mathematical line
-    
+    const lineId = Math.floor((startR + startC) / 2);
     for (let r = 0; r < numGridRows; r++) {
       for (let c = 0; c < numGridCols; c++) {
-        if (isValid(r,c) && (r + c === sum1 || r + c === sum2)) {
+        if (isValid(r,c) && Math.floor((r + c) / 2) === lineId) {
           lineCoords.push({ r, c });
         }
       }
     }
   } else { // '\' diagonal
-    const diff1 = startR - startC;
-    const diff2 = diff1 + 1; // The adjacent mathematical line
-
+    const lineId = Math.floor((startR - startC) / 2);
     for (let r = 0; r < numGridRows; r++) {
       for (let c = 0; c < numGridCols; c++) {
-        if (isValid(r,c) && (r - c === diff1 || r - c === diff2)) {
+        if (isValid(r,c) && Math.floor((r - c) / 2) === lineId) {
           lineCoords.push({ r, c });
         }
       }
     }
   }
   
-  // Sort the coordinates to ensure they are processed in a consistent order for sliding.
   lineCoords.sort((a, b) => {
     if (a.r !== b.r) return a.r - b.r;
     return a.c - b.c;
@@ -159,26 +152,22 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     const { rows } = getGridDimensions(grid);
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     const neighbors: { r: number; c: number }[] = [];
-    const { orientation } = tile;
 
-    // Horizontal neighbors are always adjacent on the same row.
-    if (c > 0) {
-      neighbors.push({ r, c: c - 1 });
-    }
-    if (c < cols - 1) {
-      neighbors.push({ r, c: c + 1 });
-    }
+    // Horizontal neighbors are always the same.
+    if (c > 0) neighbors.push({ r, c: c - 1 });
+    if (c < cols - 1) neighbors.push({ r, c: c + 1 });
 
-    // Vertical neighbor depends on the tile's orientation for a checkerboard grid.
-    if (orientation === 'up') {
-        // An up-pointing triangle's horizontal base is on the bottom, touching the tile below.
-        if (r < rows - 1) {
-            neighbors.push({ r: r + 1, c });
-        }
-    } else { // 'down'
-        // A down-pointing triangle's horizontal base is on the top, touching the tile above.
+    // The third neighbor's position depends on the tile's orientation ('up' or 'down' pointing).
+    // This is for the checkerboard pattern.
+    if (tile.orientation === 'up') {
+        // Up-pointing triangles have a flat top edge, so their third neighbor is above.
         if (r > 0) {
             neighbors.push({ r: r - 1, c });
+        }
+    } else { // 'down'
+        // Down-pointing triangles have a flat bottom edge, so their third neighbor is below.
+        if (r < rows - 1) {
+            neighbors.push({ r: r + 1, c });
         }
     }
 
