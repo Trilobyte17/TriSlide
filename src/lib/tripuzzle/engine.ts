@@ -176,53 +176,28 @@ export const slideLine = (
 
   for (let i = 0; i < numCellsInLine; i++) {
     const targetCoord = lineCoords[i];
-    let sourceTileData: Tile | null = null;
-    let isNewlySpawned = false;
+    let sourceIndex;
 
     if (slideDirection === 'forward') {
-      const sourceIndex = (i - 1 + numCellsInLine) % numCellsInLine;
-      sourceTileData = originalTilesData[sourceIndex];
-      if (i === 0) {
-        isNewlySpawned = true;
-      }
+      sourceIndex = (i - 1 + numCellsInLine) % numCellsInLine;
     } else { 
-      const sourceIndex = (i + 1) % numCellsInLine;
-      sourceTileData = originalTilesData[sourceIndex];
-      if (i === numCellsInLine - 1) {
-        isNewlySpawned = true;
-      }
+      sourceIndex = (i + 1) % numCellsInLine;
     }
+    
+    const sourceTileData = originalTilesData[sourceIndex];
 
-    let tileToPlace: Tile | null = null;
-
-    if (isNewlySpawned) {
-      let orientationForNewTile = getExpectedOrientation(targetCoord.r, targetCoord.c);
-      
-      tileToPlace = {
-        id: generateUniqueId(),
-        color: getRandomColor(),
+    if (sourceTileData) {
+      newGrid[targetCoord.r][targetCoord.c] = {
+        ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: orientationForNewTile,
-        isNew: true,
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
+        isNew: false,
         isMatched: false,
       };
     } else {
-      if (sourceTileData) {
-        tileToPlace = {
-          ...sourceTileData,
-          id: sourceTileData.id,
-          row: targetCoord.r,
-          col: targetCoord.c,
-          orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
-          isNew: false, 
-          isMatched: false,
-        };
-      } else {
-        tileToPlace = null; 
-      }
+      newGrid[targetCoord.r][targetCoord.c] = null;
     }
-    newGrid[targetCoord.r][targetCoord.c] = tileToPlace;
   }
   return newGrid;
 };
@@ -252,38 +227,24 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     const neighbors: { r: number; c: number }[] = [];
     const { orientation } = tile;
 
-    // Horizontal neighbors (left and right)
-    // These neighbors must have the opposite orientation.
+    // Horizontal neighbors (left and right) are always adjacent
     if (c > 0) {
-        const leftNeighbor = grid[r]?.[c - 1];
-        if (leftNeighbor && leftNeighbor.orientation !== orientation) {
-            neighbors.push({ r, c: c - 1 });
-        }
+      neighbors.push({ r, c: c - 1 });
     }
     if (c < cols - 1) {
-        const rightNeighbor = grid[r]?.[c + 1];
-        if (rightNeighbor && rightNeighbor.orientation !== orientation) {
-            neighbors.push({ r, c: c + 1 });
-        }
+      neighbors.push({ r, c: c + 1 });
     }
 
-    // Vertical neighbor (top or bottom)
-    // This neighbor must also have the opposite orientation.
+    // Vertical neighbor depends on the tile's orientation
     if (orientation === 'up') {
-        // Up-pointing triangles have a neighbor BELOW them.
+        // Up-pointing triangles have a horizontal base at the bottom, connecting to the tile below.
         if (r < rows - 1) {
-            const bottomNeighbor = grid[r + 1]?.[c];
-            if (bottomNeighbor && bottomNeighbor.orientation === 'down') {
-                neighbors.push({ r: r + 1, c });
-            }
+            neighbors.push({ r: r + 1, c });
         }
     } else { // orientation === 'down'
-        // Down-pointing triangles have a neighbor ABOVE them.
+        // Down-pointing triangles have a horizontal base at the top, connecting to the tile above.
         if (r > 0) {
-            const topNeighbor = grid[r - 1]?.[c];
-            if (topNeighbor && topNeighbor.orientation === 'up') {
-                neighbors.push({ r: r - 1, c });
-            }
+            neighbors.push({ r: r - 1, c });
         }
     }
 
@@ -318,6 +279,9 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
       while (queue.length > 0) {
         const currentPos = queue.shift()!;
+        const currentTile = workingGrid[currentPos.r]?.[currentPos.c];
+        if(!currentTile) continue;
+
         componentCoords.push(currentPos);
         
         const neighbors = getNeighbors(currentPos.r, currentPos.c, workingGrid);
@@ -327,6 +291,8 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
           if ( neighborTile &&
                 neighborTile.color === targetColor &&
+                // Important: check that the neighbor is actually adjacent geometrically
+                getNeighbors(neighborPos.r, neighborPos.c, workingGrid).some(n => n.r === currentPos.r && n.c === currentPos.c) &&
                 !visitedForCurrentComponent.has(neighborKey) ) {
             visitedForCurrentComponent.add(neighborKey);
             queue.push(neighborPos);
@@ -459,5 +425,3 @@ export const checkGameOver = (grid: GridData): boolean => {
   }
   return true;
 };
-
-    
