@@ -47,35 +47,37 @@ export const addInitialTiles = (grid: GridData): GridData => {
 };
 
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): {r: number, c: number}[] => {
-  const { rows: numGridRows, cols: numGridCols } = getGridDimensions(grid);
+  const { rows: numGridRows } = getGridDimensions(grid);
+  const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
   const lineCoords: {r: number, c: number}[] = [];
   
-  const isValid = (r: number, c: number) => r >= 0 && r < numGridRows && c >= 0 && c < numGridCols && grid[r]?.[c] !== null;
+  const isValid = (r: number, c: number) => r >= 0 && r < numGridRows && c >= 0 && c < numVisualCols && grid[r]?.[c] !== null;
 
   if (!isValid(startR, startC)) {
     return [];
   }
 
-  if (type === 'sum') { // '/' diagonal
-    const lineId = Math.floor((startR + startC) / 2);
+  if (type === 'sum') { // '\' diagonal, where r+c is constant
+    const sum = startR + startC;
     for (let r = 0; r < numGridRows; r++) {
-      for (let c = 0; c < numGridCols; c++) {
-        if (isValid(r,c) && Math.floor((r + c) / 2) === lineId) {
+      for (let c = 0; c < numVisualCols; c++) {
+        if (isValid(r, c) && (r + c === sum)) {
           lineCoords.push({ r, c });
         }
       }
     }
-  } else { // '\' diagonal
-    const lineId = Math.floor((startR - startC) / 2);
+  } else { // 'diff' corresponds to '/' diagonal, where r-c is constant
+    const diff = startR - startC;
     for (let r = 0; r < numGridRows; r++) {
-      for (let c = 0; c < numGridCols; c++) {
-        if (isValid(r,c) && Math.floor((r - c) / 2) === lineId) {
+      for (let c = 0; c < numVisualCols; c++) {
+        if (isValid(r, c) && (r - c === diff)) {
           lineCoords.push({ r, c });
         }
       }
     }
   }
   
+  // Sorting is important for the slideLine function to work correctly
   lineCoords.sort((a, b) => {
     if (a.r !== b.r) return a.r - b.r;
     return a.c - b.c;
@@ -158,7 +160,7 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     if (c < cols - 1) neighbors.push({ r, c: c + 1 });
 
     // The third neighbor's position depends on the tile's orientation ('up' or 'down' pointing).
-    // This is for the checkerboard pattern.
+    // This logic relies on the checkerboard pattern established by getExpectedOrientation.
     if (tile.orientation === 'up') {
         // Up-pointing triangles have a flat top edge, so their third neighbor is above.
         if (r > 0) {
