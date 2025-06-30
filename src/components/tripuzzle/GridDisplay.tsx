@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
-import { getExpectedOrientation } from '@/lib/tripuzzle/utils';
+import { getExpectedOrientation } from '@/lib/tripuzzle/utils'; // Fixed import
 import { Tile } from './Tile';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import Image from 'next/image';
@@ -121,24 +121,29 @@ export function GridDisplay({
         const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
         let determinedAxis: DragAxis | null = null;
 
-        // Improved angle detection for diagonal slides
+        // Improved angle detection for triangular grid diagonals
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) { 
           determinedAxis = 'row';
-        } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { 
-          // For sum diagonal (/) - down-right or up-left movement
-          if ((angle > 30 && angle < 90)) { // down-right
-                determinedAxis = 'diff';
-           } else { // up-left
-                determinedAxis = 'diff';
-           }
-        } else { // 90 to 150 (-150 to -90)
-             // For diff diagonal (\) - down-left or up-right movement
-             if ((angle > 90 && angle < 150)) { // down-left
-                determinedAxis = 'sum';
-            } else { // up-right
-                determinedAxis = 'sum';
-            }
+        } else if (angle > 30 && angle < 150) {
+          // Upper half: down-left to down-right
+          if (angle > 30 && angle < 90) {
+            // Down-right: diff diagonal (\)
+            determinedAxis = 'diff';
+          } else {
+            // Down-left: sum diagonal (/)
+            determinedAxis = 'sum';
+          }
+        } else {
+          // Lower half: up-right to up-left
+          if (angle < -30 && angle > -90) {
+            // Up-right: diff diagonal (\)
+            determinedAxis = 'diff';
+          } else {
+            // Up-left: sum diagonal (/)
+            determinedAxis = 'sum';
+          }
         }
+        
         newDragAxisLocked = determinedAxis;
         
         if (determinedAxis === 'row') {
@@ -157,7 +162,9 @@ export function GridDisplay({
         newVisualOffset = deltaX;
       } else {
         // For diagonal slides, project the drag vector onto the diagonal direction
-        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3);
+        // Sum diagonal (/) goes from top-right to bottom-left
+        // Diff diagonal (\) goes from top-left to bottom-right
+        const lineAngleRad = newDragAxisLocked === 'sum' ? (Math.PI * 3 / 4) : (Math.PI / 4);
         newVisualOffset = deltaX * Math.cos(lineAngleRad) + deltaY * Math.sin(lineAngleRad);
       }
     }
@@ -234,7 +241,8 @@ export function GridDisplay({
           return { dx: visualTilesPerRow * (TILE_BASE_WIDTH / 2) + (TILE_BASE_WIDTH/2) , dy: 0 }; 
       } else { 
           const unitShiftDistance = TILE_BASE_WIDTH * 0.5; 
-          const angleRad = axis === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3);
+          // Corrected angles for proper triangular grid tessellation
+          const angleRad = axis === 'sum' ? (Math.PI * 3 / 4) : (Math.PI / 4);
           return {
               dx: lineCoordsLength * unitShiftDistance * Math.cos(angleRad),
               dy: lineCoordsLength * unitShiftDistance * Math.sin(angleRad)
@@ -277,7 +285,7 @@ export function GridDisplay({
             if (activeDrag.dragAxisLocked === 'row') {
               primaryDeltaX = activeDrag.visualOffset;
             } else {
-              const angleRad = activeDrag.dragAxisLocked === 'sum' ? (Math.PI * 2 / 3) : (Math.PI / 3);
+              const angleRad = activeDrag.dragAxisLocked === 'sum' ? (Math.PI * 3 / 4) : (Math.PI / 4);
               primaryDeltaX = activeDrag.visualOffset * Math.cos(angleRad);
               primaryDeltaY = activeDrag.visualOffset * Math.sin(angleRad);
             }

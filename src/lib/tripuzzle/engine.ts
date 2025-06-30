@@ -54,7 +54,7 @@ const getNextCoordOnDiagonalPath = (r: number, c: number, currentCellOrientation
     } else { // currentCellOrientation === 'down'
       nextR = r; nextC = c - 1; expectedNextOrientation = 'up';
     }
-  } else { // type === 'diff', '\' diagonal, moving towards bottom-right (with "experimental swap" logic)
+  } else { // type === 'diff', '\' diagonal, moving towards bottom-right
     if (currentCellOrientation === 'up') {
       nextR = r + 1; nextC = c; expectedNextOrientation = 'down';
     } else { // currentCellOrientation === 'down'
@@ -81,7 +81,7 @@ const getPrevCoordOnDiagonalPath = (r: number, c: number, currentCellOrientation
     } else { // currentCellOrientation === 'down'
       prevR = r - 1; prevC = c; expectedPrevOrientation = 'up';
     }
-  } else { // type === 'diff', '\' diagonal, moving towards top-left (with "experimental swap" logic)
+  } else { // type === 'diff', '\' diagonal, moving towards top-left
     if (currentCellOrientation === 'up') {
       prevR = r; prevC = c - 1; expectedPrevOrientation = 'down';
     } else { // currentCellOrientation === 'down'
@@ -96,7 +96,6 @@ const getPrevCoordOnDiagonalPath = (r: number, c: number, currentCellOrientation
   }
   return null;
 };
-
 
 export const getTilesOnDiagonal = async (grid: GridData, startR: number, startC: number, type: DiagonalType): Promise<{r: number, c: number}[]> => {
   const { rows: numGridRows } = await getGridDimensions(grid);
@@ -393,7 +392,6 @@ export const findAndMarkMatches = async (grid: GridData): Promise<{ newGrid: Gri
   }
   return { newGrid, hasMatches, matchCount };
 };
-
 
 export const removeMatchedTiles = async (grid: GridData): Promise<GridData> => {
   return grid.map(row => row.map(tile => (tile && tile.isMatched ? null : tile)));
