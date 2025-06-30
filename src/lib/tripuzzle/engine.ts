@@ -2,19 +2,7 @@
 "use client";
 
 import type { GridData, Tile, GridDimensions, DiagonalType, SlideDirection } from './types';
-import { GAME_SETTINGS, getRandomColor } from './types';
-
-export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  if (r < 0) r = Math.abs(r); // Handle negative row indices if they occur
-  const isEvenRow = r % 2 === 0;
-  const isEvenCol = c % 2 === 0;
-
-  if (isEvenRow) {
-    return isEvenCol ? 'up' : 'down';
-  } else {
-    return isEvenCol ? 'down' : 'up';
-  }
-};
+import { GAME_SETTINGS, getRandomColor, getExpectedOrientation } from './types';
 
 const generateUniqueId = (): string => Math.random().toString(36).substr(2, 9);
 
@@ -282,19 +270,19 @@ export const getNeighbors = async (r: number, c: number, grid: GridData): Promis
       neighbors.push({ r: r, c: c + 1 });
     }
   }
-  // Vertical
-  if (currentOrientation === 'up') { // Current is UP, looks for DOWN below
-    if (r + 1 < GAME_SETTINGS.GRID_HEIGHT_TILES) {
-      const belowNeighborTile = grid[r+1]?.[c];
-      if (belowNeighborTile && getExpectedOrientation(r+1, c) === 'down') {
-        neighbors.push({ r: r + 1, c: c });
-      }
-    }
-  } else { // Current is DOWN, looks for UP above
+  // Vertical/Point-to-Point neighbor
+  if (currentOrientation === 'up') { // An "up" tile's point connects to a "down" tile's point in the row above.
     if (r - 1 >= 0) {
       const aboveNeighborTile = grid[r-1]?.[c];
-      if (aboveNeighborTile && getExpectedOrientation(r-1, c) === 'up') {
+      if (aboveNeighborTile && getExpectedOrientation(r-1, c) === 'down') {
         neighbors.push({ r: r - 1, c: c });
+      }
+    }
+  } else { // A "down" tile's point connects to an "up" tile's point in the row below.
+    if (r + 1 < GAME_SETTINGS.GRID_HEIGHT_TILES) {
+      const belowNeighborTile = grid[r+1]?.[c];
+      if (belowNeighborTile && getExpectedOrientation(r+1, c) === 'up') {
+        neighbors.push({ r: r + 1, c: c });
       }
     }
   }
@@ -330,13 +318,7 @@ export const findAndMarkMatches = async (grid: GridData): Promise<{ newGrid: Gri
       while (queue.length > 0) {
         const currentPos = queue.shift()!;
         componentCoords.push(currentPos);
-        // Mark as processed for this entire findAndMarkMatches call AFTER it's part of a component
-        // This ensures if a non-match component is found, its tiles can still be start of another search
-        // No, this should be added to visitedForThisCall as soon as it's taken to explore from.
-        // Otherwise, a tile could be added to multiple non-matching components' visitedForCurrentComponent.
-        // Correction: Add to visitedForThisCall when starting a new component exploration if it wasn't already visited.
-        // The current logic is: if visitedForThisCall.has(startTileKey), skip. This means it's added after its component is fully explored.
-
+        
         const neighbors = await getNeighbors(currentPos.r, currentPos.c, workingGrid);
         for (const neighborPos of neighbors) {
           const neighborTile = workingGrid[neighborPos.r]?.[neighborPos.c];

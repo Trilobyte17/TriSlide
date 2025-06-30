@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { GridData, DiagonalType, SlideDirection, Tile as TileType } from '@/lib/tripuzzle/types';
-import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
-import { getExpectedOrientation, getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
+import { GAME_SETTINGS, getExpectedOrientation } from '@/lib/tripuzzle/types';
+import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import { Tile } from './Tile';
 import Image from 'next/image';
 

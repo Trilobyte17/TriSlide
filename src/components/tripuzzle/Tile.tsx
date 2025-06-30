@@ -31,14 +31,13 @@ export function Tile({ tile }: TileProps) {
 
   if (tile.isMatched) {
     // Debug highlight for matched tiles (thick black border, original color)
-    // tileFillColor = tileStyle.backgroundColor; // Keep original color
-    // currentBorderStroke = `hsl(0 0% 0%)`; // Thick black border
-    // currentBorderStrokeWidth = 3; 
-    // filterStyle = undefined; // No extra filter for simple black border
-    tileClassName = "animate-tile-vanish"; // For normal gameplay
+    currentBorderStroke = `hsl(0 0% 0%)`; // Thick black border
+    currentBorderStrokeWidth = 3;
+    // The tile-matched-highlighting class (defined in page.tsx) prevents
+    // the vanish animation from running, allowing us to see the matched tiles for debugging.
+    tileClassName = "tile-matched-highlighting";
   } else if (tile.isNew) {
     tileClassName = "animate-tile-spawn";
-    // tileInlineStyle.opacity = 1; // DIAGNOSTIC: Force opacity - REVERTED
   }
 
 

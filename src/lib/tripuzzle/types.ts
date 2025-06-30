@@ -40,7 +40,7 @@ export const GAME_SETTINGS = {
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const,
   SCORE_PER_MATCHED_TILE: 10,
   SLIDE_ANIMATION_DURATION: 150, // ms
-  MATCH_ANIMATION_DURATION: 300,
+  MATCH_ANIMATION_DURATION: 2000,
   SPAWN_ANIMATION_DURATION: 300,
   DRAG_THRESHOLD: TARGET_TILE_BASE_WIDTH / 3,
   TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH,
@@ -63,4 +63,16 @@ export const getTileColorStyle = (color: TileColor): { backgroundColor: string, 
 
 export const getRandomColor = (): TileColor => {
   return GAME_SETTINGS.COLORS[Math.floor(Math.random() * GAME_SETTINGS.COLORS.length)];
+};
+
+export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
+  if (r < 0) r = Math.abs(r); // Handle negative row indices if they occur
+  const isEvenRow = r % 2 === 0;
+  const isEvenCol = c % 2 === 0;
+
+  if (isEvenRow) {
+    return isEvenCol ? 'up' : 'down';
+  } else {
+    return isEvenCol ? 'down' : 'up';
+  }
 };
