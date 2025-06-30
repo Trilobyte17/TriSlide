@@ -244,37 +244,48 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
 };
 
 export const getNeighbors = (r: number, c: number, grid: GridData): { r: number; c: number }[] => {
-    const neighbors: { r: number; c: number }[] = [];
     const tile = grid[r]?.[c];
-    if (!tile) {
-      return [];
-    }
+    if (!tile) return [];
 
     const { rows } = getGridDimensions(grid);
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     const isUp = tile.orientation === 'up';
+    const neighbors: { r: number; c: number }[] = [];
+
+    // Neighbor to the left
+    if (c > 0) {
+        const leftNeighbor = grid[r]?.[c - 1];
+        if (leftNeighbor && leftNeighbor.orientation !== tile.orientation) {
+            neighbors.push({ r, c: c - 1 });
+        }
+    }
+
+    // Neighbor to the right
+    if (c < cols - 1) {
+        const rightNeighbor = grid[r]?.[c + 1];
+        if (rightNeighbor && rightNeighbor.orientation !== tile.orientation) {
+            neighbors.push({ r, c: c + 1 });
+        }
+    }
 
     if (isUp) {
-      if (r > 0 && grid[r - 1]?.[c]?.orientation === 'down') {
-        neighbors.push({ r: r - 1, c: c });
-      }
-      if (c > 0 && grid[r]?.[c - 1]?.orientation === 'down') {
-        neighbors.push({ r: r, c: c - 1 });
-      }
-      if (c < cols - 1 && grid[r]?.[c + 1]?.orientation === 'down') {
-        neighbors.push({ r: r, c: c + 1 });
-      }
-    } else { 
-      if (r < rows - 1 && grid[r + 1]?.[c]?.orientation === 'up') {
-        neighbors.push({ r: r + 1, c: c });
-      }
-      if (c > 0 && grid[r]?.[c - 1]?.orientation === 'up') {
-        neighbors.push({ r: r, c: c - 1 });
-      }
-      if (c < cols - 1 && grid[r]?.[c + 1]?.orientation === 'up') {
-        neighbors.push({ r: r, c: c + 1 });
-      }
+        // Neighbor above
+        if (r > 0) {
+            const topNeighbor = grid[r - 1]?.[c];
+            if (topNeighbor && topNeighbor.orientation === 'down') {
+                neighbors.push({ r: r - 1, c });
+            }
+        }
+    } else { // 'down'
+        // Neighbor below
+        if (r < rows - 1) {
+            const bottomNeighbor = grid[r + 1]?.[c];
+            if (bottomNeighbor && bottomNeighbor.orientation === 'up') {
+                neighbors.push({ r: r + 1, c });
+            }
+        }
     }
+
     return neighbors;
 };
 
