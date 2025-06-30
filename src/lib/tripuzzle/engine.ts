@@ -55,36 +55,30 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     return [];
   }
 
-  let r = startR;
-  let c = startC;
-
-  // Find the starting tile of the diagonal line by traversing "up" to the edge.
-  if (type === 'sum') { // Diagonal like '/', from bottom-left to top-right. Find top-right-most tile.
-    while (r > 0 && c < numVisualCols - 1) {
-      r--;
-      c++;
+  if (type === 'sum') {
+    const sum = startR + startC;
+    for (let r = 0; r < numGridRows; r++) {
+      for (let c = 0; c < numVisualCols; c++) {
+        if (grid[r]?.[c] && r + c === sum) {
+          lineCoords.push({ r, c });
+        }
+      }
     }
-  } else { // Diagonal like '\', from top-left to bottom-right. Find top-left-most tile.
-    while (r > 0 && c > 0) {
-      r--;
-      c--;
-    }
-  }
-
-  // Now traverse along the diagonal from the edge to collect all tiles.
-  while (r < numGridRows && c >= 0 && c < numVisualCols) {
-    if (grid[r]?.[c]) {
-        lineCoords.push({ r, c });
-    }
-    
-    r++;
-    if (type === 'sum') {
-      c--; // A '/' diagonal moves down and to the left.
-    } else {
-      c++; // A '\' diagonal moves down and to the right.
+  } else { // type === 'diff'
+    const diff = startR - startC;
+    for (let r = 0; r < numGridRows; r++) {
+      for (let c = 0; c < numVisualCols; c++) {
+        if (grid[r]?.[c] && r - c === diff) {
+          lineCoords.push({ r, c });
+        }
+      }
     }
   }
   
+  // The order of tiles in the line matters for the slide animation.
+  // We sort by row to ensure a consistent top-to-bottom or bottom-to-top order.
+  lineCoords.sort((a, b) => a.r - b.r);
+
   return lineCoords;
 };
 
