@@ -40,7 +40,7 @@ export const GAME_SETTINGS = {
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const,
   SCORE_PER_MATCHED_TILE: 10,
   SLIDE_ANIMATION_DURATION: 150, // ms
-  MATCH_ANIMATION_DURATION: 2000,
+  MATCH_ANIMATION_DURATION: 400,
   SPAWN_ANIMATION_DURATION: 300,
   DRAG_THRESHOLD: TARGET_TILE_BASE_WIDTH / 3,
   TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH,
@@ -66,10 +66,6 @@ export const getRandomColor = (): TileColor => {
 };
 
 export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  // This creates the classic checkerboard pattern of up/down triangles
-  if (r % 2 === 0) { // Even rows
-    return c % 2 === 0 ? 'down' : 'up';
-  } else { // Odd rows
-    return c % 2 === 0 ? 'up' : 'down';
-  }
+  // (r+c) is even -> down, (r+c) is odd -> up
+  return (r + c) % 2 === 0 ? 'down' : 'up';
 };

@@ -21,21 +21,15 @@ export function Tile({ tile }: TileProps) {
   const uniqueGlossyId = `glossy-${tile.id}`;
 
   let tileFillColor = tileStyle.backgroundColor;
-  // Default border, can be overridden for matched state
   let currentBorderStroke = `hsl(${GAME_SETTINGS.TILE_BORDER_COLOR_HSL})`;
   let currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH;
   let tileClassName = "";
-  let tileInlineStyle: React.CSSProperties = { pointerEvents: 'none' }; // Keep pointer events off individual SVGs
+  let tileInlineStyle: React.CSSProperties = { pointerEvents: 'none' };
   let filterStyle: string | undefined = undefined;
 
 
   if (tile.isMatched) {
-    // Debug highlight for matched tiles (thick black border, original color)
-    currentBorderStroke = `hsl(0 0% 0%)`; // Thick black border
-    currentBorderStrokeWidth = 3;
-    // The tile-matched-highlighting class (defined in page.tsx) prevents
-    // the vanish animation from running, allowing us to see the matched tiles for debugging.
-    tileClassName = "tile-matched-highlighting";
+    tileClassName = "animate-tile-vanish";
   } else if (tile.isNew) {
     tileClassName = "animate-tile-spawn";
   }
@@ -55,6 +49,8 @@ export function Tile({ tile }: TileProps) {
       style={{
         ...tileInlineStyle,
         filter: filterStyle,
+        // The vanish animation handles opacity, so we don't want to fight it.
+        opacity: tile.isMatched ? undefined : 1
       }}
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
     >
@@ -73,7 +69,7 @@ export function Tile({ tile }: TileProps) {
           strokeWidth: currentBorderStrokeWidth,
         }}
       />
-      {/* Only apply glossy effect if not matched (i.e., not vanishing) */}
+      {/* Do not apply glossy effect if vanishing */}
       {!tile.isMatched && (
         <polygon
           points={points}
