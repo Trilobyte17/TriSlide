@@ -173,7 +173,7 @@ export function GridDisplay({
 
       const effectiveTileShiftUnit = dragAxisLocked === 'row' 
         ? TILE_BASE_WIDTH / 2 
-        : TILE_BASE_WIDTH * Math.cos(Math.PI / 6); // Effective width projection for diagonals
+        : TILE_BASE_WIDTH * Math.cos(Math.PI / 6);
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
       const numActualSteps = Math.abs(numStepsRaw);

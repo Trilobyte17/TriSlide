@@ -64,18 +64,14 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
 
     if (type === 'diff') { // '\' diagonal, Top-Left to Bottom-Right is 'forward'
         if (tile.orientation === 'up') {
-            // From U at (r,c), forward is D at (r, c+1). Backward is D at (r-1, c).
             return isForward ? { r: r, c: c + 1 } : { r: r - 1, c: c };
         } else { // 'down'
-            // From D at (r,c), forward is U at (r+1,c). Backward is U at (r, c-1).
             return isForward ? { r: r + 1, c: c } : { r: r, c: c - 1 };
         }
     } else { // type === 'sum', '/' diagonal, Top-Right to Bottom-Left is 'forward'
         if (tile.orientation === 'up') {
-            // From U at (r,c), forward is D at (r+1, c). Backward is D at (r, c+1).
-            return isForward ? { r: r + 1, c: c } : { r: r, c: c + 1 };
+            return isForward ? { r: r - 1, c: c } : { r: r, c: c - 1 };
         } else { // 'down'
-            // From D at (r,c), forward is U at (r, c-1). Backward is U at (r-1, c).
             return isForward ? { r: r, c: c - 1 } : { r: r - 1, c: c };
         }
     }
@@ -186,18 +182,52 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     const isValid = (nr: number, nc: number) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr]?.[nc];
 
-    // An up-pointing triangle touches its horizontal neighbors and the down-pointing one below it.
-    // A down-pointing triangle touches its horizontal neighbors and the up-pointing one above it.
-    if (isValid(r, c - 1)) neighbors.push({ r, c: c - 1 });
-    if (isValid(r, c + 1)) neighbors.push({ r, c: c + 1 });
-    
     if (tile.orientation === 'up') {
-        if (isValid(r + 1, c)) neighbors.push({ r: r + 1, c });
+        // Top-left, top-right, bottom
+        if (isValid(r - 1, c - 1)) neighbors.push({ r: r-1, c: c-1 });
+        if (isValid(r - 1, c)) neighbors.push({ r: r-1, c: c });
+        if (isValid(r + 1, c)) neighbors.push({ r: r+1, c: c });
     } else { // 'down'
-        if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c });
+        // Top, bottom-left, bottom-right
+        if (isValid(r - 1, c)) neighbors.push({ r: r-1, c: c });
+        if (isValid(r + 1, c - 1)) neighbors.push({ r: r+1, c: c-1 });
+        if (isValid(r + 1, c)) neighbors.push({ r: r+1, c: c });
     }
 
-    return neighbors;
+    // This logic is for a different grid layout. The correct logic is based on shared sides.
+    const trueNeighbors: { r: number, c: number }[] = [];
+    if(tile.orientation === 'up') {
+        // An up triangle has a down triangle on top of it and two on its sides in the row above.
+        // Wait, that's wrong. A U triangle has its point up. Its base is horizontal.
+        // It touches a D triangle directly below it, and one on each top-slanted side.
+        if (isValid(r + 1, c)) trueNeighbors.push({ r: r + 1, c: c }); // Tile below
+        if (isValid(r, c - 1)) trueNeighbors.push({ r, c: c - 1 }); // Left
+        if (isValid(r, c + 1)) trueNeighbors.push({ r, c: c + 1 }); // Right
+        // The above is for a standard grid. For a triangular one...
+        // For 'up' at (r,c), neighbors are (r-1, c), (r, c-1), (r, c+1) if orientation is correct
+        const potentialNeighbors = [
+          { r: r, c: c - 1 }, // left
+          { r: r, c: c + 1 }, // right
+          { r: r - 1, c: c }, // top
+        ];
+        for (const p of potentialNeighbors) {
+          if (isValid(p.r, p.c) && grid[p.r][p.c]?.orientation === 'down') {
+            trueNeighbors.push(p);
+          }
+        }
+    } else { // 'down'
+        const potentialNeighbors = [
+          { r: r, c: c - 1 }, // left
+          { r: r, c: c + 1 }, // right
+          { r: r + 1, c: c }, // bottom
+        ];
+        for (const p of potentialNeighbors) {
+          if (isValid(p.r, p.c) && grid[p.r][p.c]?.orientation === 'up') {
+            trueNeighbors.push(p);
+          }
+        }
+    }
+    return trueNeighbors;
 };
 
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
@@ -222,28 +252,25 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
             const component: { r: number, c: number }[] = [];
             const queue: { r: number; c: number }[] = [{ r, c }];
             const componentVisited = new Set<string>([startKey]);
-
-            // Important: Don't mark as globally visited until after the component is found,
-            // to avoid issues with single non-matching tiles.
+            globalVisited.add(startKey);
             
             while (queue.length > 0) {
                 const currentPos = queue.shift()!;
                 component.push(currentPos);
                 
                 const neighbors = getNeighbors(currentPos.r, currentPos.c, workingGrid);
+
                 for (const neighborPos of neighbors) {
                     const neighborKey = `${neighborPos.r},${neighborPos.c}`;
                     const neighborTile = workingGrid[neighborPos.r]?.[neighborPos.c];
 
                     if (neighborTile && !componentVisited.has(neighborKey) && neighborTile.color === startTile.color) {
                         componentVisited.add(neighborKey);
+                        globalVisited.add(neighborKey);
                         queue.push(neighborPos);
                     }
                 }
             }
-
-            // After finding the full component of this color, mark all its tiles as globally visited.
-            component.forEach(pos => globalVisited.add(`${pos.r},${pos.c}`));
 
             if (component.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
                 hasMatches = true;
