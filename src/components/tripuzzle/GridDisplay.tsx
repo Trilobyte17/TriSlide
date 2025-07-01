@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { GridData, DiagonalType, SlideDirection, Tile as TileType } from '@/lib/tripuzzle/types';
+import type { GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import { getTilesOnDiagonal as getTilesOnDiagonalEngine } from '@/lib/tripuzzle/engine';
 import { Tile } from './Tile';
@@ -174,7 +174,7 @@ export function GridDisplay({
 
       // The distance between the centers of two adjacent tiles in a row is TILE_BASE_WIDTH.
       // We use this as a consistent unit for determining slide steps.
-      const effectiveTileShiftUnit = TILE_BASE_WIDTH;
+      const effectiveTileShiftUnit = TILE_BASE_WIDTH / 2;
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
       const numActualSteps = Math.abs(numStepsRaw);
@@ -286,3 +286,4 @@ export function GridDisplay({
     </div>
   );
 }
+
