@@ -46,67 +46,72 @@ export const addInitialTiles = (grid: GridData): GridData => {
   return newGrid;
 };
 
-export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): {r: number, c: number}[] => {
-    const { rows: numGridRows, cols: numGridCols } = getGridDimensions(grid);
-    const lineCoords: { r: number; c: number }[] = [];
-    const visited = new Set<string>();
+export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): { r: number; c: number }[] => {
+  const { rows: numGridRows } = getGridDimensions(grid);
+  const lineCoords: { r: number; c: number }[] = [];
+  const visited = new Set<string>();
 
-    const isValid = (r: number, c: number) => r >= 0 && r < numGridRows && c >= 0 && c < GAME_SETTINGS.VISUAL_TILES_PER_ROW && grid[r]?.[c] !== null;
+  const isValid = (r: number, c: number) =>
+    r >= 0 && r < numGridRows && c >= 0 && c < GAME_SETTINGS.VISUAL_TILES_PER_ROW && grid[r]?.[c] !== null;
 
-    if (!isValid(startR, startC)) return [];
+  if (!isValid(startR, startC)) return [];
 
-    const getNextInWalk = (r: number, c: number, direction: 'forward' | 'backward') => {
-        const tile = grid[r]?.[c];
-        if (!tile) return null;
+  const getNextInWalk = (r: number, c: number, direction: 'forward' | 'backward'): { r: number; c: number } | null => {
+    const tile = grid[r]?.[c];
+    if (!tile) return null;
 
-        const isSumType = type === 'sum'; // '/'
-        const isForward = direction === 'forward';
-
-        if (tile.orientation === 'up') {
-            if (isSumType) { // For sum ('/'), up tiles connect to (r-1,c) and (r,c+1)
-                return isForward ? { r: r - 1, c } : { r, c: c + 1 };
-            } else { // For diff ('\'), up tiles connect to (r-1,c) and (r,c-1)
-                return isForward ? { r: r - 1, c } : { r, c: c - 1 };
-            }
-        } else { // down
-            if (isSumType) { // For sum ('/'), down tiles connect to (r+1,c) and (r,c-1)
-                return isForward ? { r, c: c - 1 } : { r: r + 1, c };
-            } else { // For diff ('\'), down tiles connect to (r+1,c) and (r,c+1)
-                return isForward ? { r, c: c + 1 } : { r: r + 1, c };
-            }
-        }
-    };
+    const isForward = direction === 'forward';
     
-    let r = startR;
-    let c = startC;
-    // Traverse to the start of the line
-    while (true) {
-        const prev = getNextInWalk(r, c, 'backward');
-        if (prev && isValid(prev.r, prev.c)) {
-            r = prev.r;
-            c = prev.c;
-        } else {
-            break;
-        }
-    }
-
-    // Now at the start, traverse to the end
-    while (isValid(r, c)) {
-        const key = `${r},${c}`;
-        if (visited.has(key)) break;
-        visited.add(key);
-        lineCoords.push({ r, c });
-
-        const next = getNextInWalk(r, c, 'forward');
-        if (next && isValid(next.r, next.c)) {
-            r = next.r;
-            c = next.c;
-        } else {
-            break;
-        }
-    }
+    // For type 'diff' ('\'), visual line goes from top-left to bottom-right.
+    // 'forward' is moving towards bottom-right.
+    if (type === 'diff') {
+      if (tile.orientation === 'down') {
+        return isForward ? { r, c: c + 1 } : { r: r - 1, c };
+      } else { // 'up'
+        return isForward ? { r: r + 1, c } : { r, c: c - 1 };
+      }
+    } 
     
-    return lineCoords;
+    // For type 'sum' ('/'), visual line goes from top-right to bottom-left.
+    // 'forward' is moving towards bottom-left.
+    else { // type === 'sum'
+      if (tile.orientation === 'up') {
+        return isForward ? { r, c: c - 1 } : { r: r - 1, c };
+      } else { // 'down'
+        return isForward ? { r: r + 1, c } : { r, c: c + 1 };
+      }
+    }
+  };
+
+  let r = startR;
+  let c = startC;
+  // Traverse to the start of the line by going backward.
+  while (true) {
+    const prev = getNextInWalk(r, c, 'backward');
+    if (prev && isValid(prev.r, prev.c)) {
+      r = prev.r;
+      c = prev.c;
+    } else {
+      break;
+    }
+  }
+
+  // Now at the start, traverse to the end by going forward.
+  while (isValid(r, c)) {
+    const key = `${r},${c}`;
+    if (visited.has(key)) break;
+    visited.add(key);
+    lineCoords.push({ r, c });
+
+    const next = getNextInWalk(r, c, 'forward');
+    if (next && isValid(next.r, next.c)) {
+      r = next.r;
+      c = next.c;
+    } else {
+      break;
+    }
+  }
+  return lineCoords;
 };
 
 export const slideLine = (
@@ -142,7 +147,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
+        orientation: sourceTileData.orientation, // FIX: Preserve orientation, do not recalculate
         isNew: false,
         isMatched: false,
       };
@@ -178,75 +183,75 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     const isValid = (nr: number, nc: number) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr]?.[nc];
 
-    // Horizontal neighbors are always to the left and right
+    // Horizontal neighbors are always to the left and right on the same row.
     if (isValid(r, c - 1)) neighbors.push({ r, c: c - 1 });
     if (isValid(r, c + 1)) neighbors.push({ r, c: c + 1 });
     
-    // The third neighbor's position depends on the tile's orientation
+    // The third neighbor's position depends on the tile's orientation.
     if (tile.orientation === 'down') {
-        // A down-pointing triangle's third neighbor is the tile it points towards, which is above.
-        if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c: c });
+        // A down-pointing triangle's third neighbor is the up-pointing triangle it shares its horizontal base with.
+        if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c });
     } else { // 'up'
-        // An up-pointing triangle's third neighbor is the tile it points towards, which is below.
-        if (isValid(r + 1, c)) neighbors.push({ r: r + 1, c: c });
+        // An up-pointing triangle's third neighbor is the down-pointing triangle it shares its horizontal base with.
+        if (isValid(r + 1, c)) neighbors.push({ r: r + 1, c });
     }
 
     return neighbors;
 };
 
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
-  const workingGrid = grid.map(row => row.map(tile => (tile ? { ...tile, isMatched: false } : null)));
-  const { rows } = getGridDimensions(workingGrid);
-  let hasMatches = false;
-  let totalMatchCount = 0;
-  const globalVisited = new Set<string>();
+    const workingGrid = grid.map(row => row.map(tile => (tile ? { ...tile, isMatched: false } : null)));
+    const { rows } = getGridDimensions(workingGrid);
+    let hasMatches = false;
+    let totalMatchCount = 0;
+    const globalVisited = new Set<string>();
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c++) {
-      const startKey = `${r},${c}`;
-      if (globalVisited.has(startKey)) {
-        continue;
-      }
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c++) {
+            const startKey = `${r},${c}`;
+            if (globalVisited.has(startKey)) {
+                continue;
+            }
 
-      const startTile = workingGrid[r]?.[c];
-      if (!startTile) {
-        continue;
-      }
+            const startTile = workingGrid[r]?.[c];
+            if (!startTile) {
+                continue;
+            }
 
-      const component: { r: number, c: number }[] = [];
-      const queue: { r: number; c: number }[] = [{ r, c }];
-      const componentVisited = new Set<string>([startKey]);
+            const component: { r: number, c: number }[] = [];
+            const queue: { r: number; c: number }[] = [{ r, c }];
+            const componentVisited = new Set<string>([startKey]);
+            globalVisited.add(startKey); 
 
-      while (queue.length > 0) {
-        const currentPos = queue.shift()!;
-        component.push(currentPos);
-        globalVisited.add(`${currentPos.r},${currentPos.c}`);
+            while (queue.length > 0) {
+                const currentPos = queue.shift()!;
+                component.push(currentPos);
+                
+                const neighbors = getNeighbors(currentPos.r, currentPos.c, workingGrid);
+                for (const neighborPos of neighbors) {
+                    const neighborKey = `${neighborPos.r},${neighborPos.c}`;
+                    const neighborTile = workingGrid[neighborPos.r]?.[neighborPos.c];
 
-        const neighbors = getNeighbors(currentPos.r, currentPos.c, workingGrid);
-        for (const neighborPos of neighbors) {
-          const neighborKey = `${neighborPos.r},${neighborPos.c}`;
-          const neighborTile = workingGrid[neighborPos.r]?.[neighborPos.c];
+                    if (neighborTile && !componentVisited.has(neighborKey) && neighborTile.color === startTile.color) {
+                        componentVisited.add(neighborKey);
+                        globalVisited.add(neighborKey); 
+                        queue.push(neighborPos);
+                    }
+                }
+            }
 
-          if (neighborTile && !componentVisited.has(neighborKey) && neighborTile.color === startTile.color) {
-            componentVisited.add(neighborKey);
-            queue.push(neighborPos);
-          }
+            if (component.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
+                hasMatches = true;
+                totalMatchCount += component.length;
+                for (const {r: matchR, c: matchC} of component) {
+                    if (workingGrid[matchR]?.[matchC]) {
+                        workingGrid[matchR][matchC]!.isMatched = true;
+                    }
+                }
+            }
         }
-      }
-
-      if (component.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
-        hasMatches = true;
-        totalMatchCount += component.length;
-        for (const {r: matchR, c: matchC} of component) {
-          if (workingGrid[matchR]?.[matchC]) {
-            workingGrid[matchR][matchC]!.isMatched = true;
-          }
-        }
-      }
     }
-  }
-
-  return { newGrid: workingGrid, hasMatches, matchCount: totalMatchCount };
+    return { newGrid: workingGrid, hasMatches, matchCount: totalMatchCount };
 };
 
 export const removeMatchedTiles = (grid: GridData): GridData => {

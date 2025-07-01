@@ -135,10 +135,10 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        // `sum` is '/' which is ~120deg. `diff` is '\' which is ~60deg.
+        // `sum` is '/' which is ~150deg. `diff` is '\' which is ~30deg.
         const axisAngleRad = newDragAxisLocked === 'row' ? 0 
-                             : newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 
-                             : Math.PI / 3;
+                             : newDragAxisLocked === 'sum' ? (5 * Math.PI) / 6 // 150 degrees
+                             : Math.PI / 6; // 30 degrees
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -172,12 +172,8 @@ export function GridDisplay({
     if (commitParams) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = commitParams;
 
-      let effectiveTileShiftUnit;
-      if (dragAxisLocked === 'row') {
-        effectiveTileShiftUnit = TILE_BASE_WIDTH;
-      } else {
-        effectiveTileShiftUnit = TILE_BASE_WIDTH * (Math.sqrt(7) / 2);
-      }
+      // The distance between the centers of two adjacent tiles in any direction (horiz or diag) is TILE_BASE_WIDTH
+      const effectiveTileShiftUnit = TILE_BASE_WIDTH;
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
       const numActualSteps = Math.abs(numStepsRaw);
@@ -242,8 +238,8 @@ export function GridDisplay({
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.dragAxisLocked) {
               const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 
-                                 : activeDrag.dragAxisLocked === 'sum' ? (2 * Math.PI) / 3 
-                                 : Math.PI / 3;
+                                 : activeDrag.dragAxisLocked === 'sum' ? (5 * Math.PI) / 6 // 150 degrees
+                                 : Math.PI / 6; // 30 degrees
               
               deltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
               deltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
