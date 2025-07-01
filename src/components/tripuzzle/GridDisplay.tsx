@@ -172,7 +172,8 @@ export function GridDisplay({
     if (commitParams) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = commitParams;
 
-      // The distance between the centers of two adjacent tiles in any direction (horiz or diag) is TILE_BASE_WIDTH
+      // The distance between the centers of two adjacent tiles in a row is TILE_BASE_WIDTH.
+      // We use this as a consistent unit for determining slide steps.
       const effectiveTileShiftUnit = TILE_BASE_WIDTH;
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);

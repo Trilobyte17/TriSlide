@@ -61,25 +61,27 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     if (!tile) return null;
 
     const isForward = direction === 'forward';
-    
-    // For type 'diff' ('\'), visual line goes from top-left to bottom-right.
-    // 'forward' is moving towards bottom-right.
-    if (type === 'diff') {
-      if (tile.orientation === 'down') {
-        return isForward ? { r, c: c + 1 } : { r: r - 1, c };
-      } else { // 'up'
-        return isForward ? { r: r + 1, c } : { r, c: c - 1 };
-      }
-    } 
-    
-    // For type 'sum' ('/'), visual line goes from top-right to bottom-left.
-    // 'forward' is moving towards bottom-left.
-    else { // type === 'sum'
-      if (tile.orientation === 'up') {
-        return isForward ? { r, c: c - 1 } : { r: r - 1, c };
-      } else { // 'down'
-        return isForward ? { r: r + 1, c } : { r, c: c + 1 };
-      }
+
+    if (type === 'diff') { // '\' diagonal, TL to BR is 'forward'
+        if (tile.orientation === 'up') {
+            // From an UP tile, forward ('down-right') is to the DOWN tile below it.
+            // Backward ('up-left') is to the DOWN tile to its left.
+            return isForward ? { r: r + 1, c: c } : { r: r, c: c - 1 };
+        } else { // 'down'
+            // From a DOWN tile, forward ('down-right') is to the UP tile to its right.
+            // Backward ('up-left') is to the UP tile above it.
+            return isForward ? { r: r, c: c + 1 } : { r: r - 1, c: c };
+        }
+    } else { // type === 'sum', '/' diagonal, TR to BL is 'forward'
+        if (tile.orientation === 'up') {
+            // From an UP tile, forward ('down-left') is to the DOWN tile below it.
+            // Backward ('up-right') is to the DOWN tile to its right.
+            return isForward ? { r: r + 1, c: c } : { r: r, c: c + 1 };
+        } else { // 'down'
+            // From a DOWN tile, forward ('down-left') is to the UP tile to its left.
+            // Backward ('up-right') is to the UP tile above it.
+            return isForward ? { r: r, c: c - 1 } : { r: r - 1, c: c };
+        }
     }
   };
 
@@ -89,12 +91,17 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
   while (true) {
     const prev = getNextInWalk(r, c, 'backward');
     if (prev && isValid(prev.r, prev.c)) {
+      const key = `${prev.r},${prev.c}`;
+      if(visited.has(key)) break; // Prevent infinite loops
+      visited.add(key);
       r = prev.r;
       c = prev.c;
     } else {
       break;
     }
   }
+  
+  visited.clear(); // Clear visited for the forward pass
 
   // Now at the start, traverse to the end by going forward.
   while (isValid(r, c)) {
@@ -147,7 +154,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: sourceTileData.orientation, // FIX: Preserve orientation, do not recalculate
+        orientation: sourceTileData.orientation,
         isNew: false,
         isMatched: false,
       };
