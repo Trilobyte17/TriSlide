@@ -135,10 +135,9 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        // `sum` is '/' which is at 120deg. `diff` is '\' which is at 60deg.
         const axisAngleRad = newDragAxisLocked === 'row' ? 0 
-                             : newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 // 120 degrees
-                             : Math.PI / 3; // 60 degrees
+                             : newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 // 120 degrees for '/'
+                             : Math.PI / 3; // 60 degrees for '\'
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -172,9 +171,9 @@ export function GridDisplay({
     if (commitParams) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = commitParams;
 
-      // The distance between the centers of two adjacent tiles in a row is TILE_BASE_WIDTH / 2.
-      // We use this as a consistent unit for determining slide steps.
-      const effectiveTileShiftUnit = TILE_BASE_WIDTH / 2;
+      const effectiveTileShiftUnit = dragAxisLocked === 'row' 
+        ? TILE_BASE_WIDTH / 2 
+        : TILE_BASE_WIDTH * Math.cos(Math.PI / 6); // Effective width projection for diagonals
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
       const numActualSteps = Math.abs(numStepsRaw);

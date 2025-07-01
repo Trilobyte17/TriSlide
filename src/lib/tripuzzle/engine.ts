@@ -62,17 +62,21 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
 
     const isForward = direction === 'forward';
 
-    if (type === 'diff') { // '\' diagonal, TL to BR is 'forward'
+    if (type === 'diff') { // '\' diagonal, Top-Left to Bottom-Right is 'forward'
         if (tile.orientation === 'up') {
-            return isForward ? { r: r + 1, c: c } : { r: r, c: c - 1 };
-        } else { // 'down'
+            // From U at (r,c), forward is D at (r, c+1). Backward is D at (r-1, c).
             return isForward ? { r: r, c: c + 1 } : { r: r - 1, c: c };
-        }
-    } else { // type === 'sum', '/' diagonal, TR to BL is 'forward'
-        if (tile.orientation === 'up') {
-            return isForward ? { r: r, c: c - 1 } : { r: r, c: c + 1 };
         } else { // 'down'
-            return isForward ? { r: r + 1, c: c } : { r: r - 1, c: c };
+            // From D at (r,c), forward is U at (r+1,c). Backward is U at (r, c-1).
+            return isForward ? { r: r + 1, c: c } : { r: r, c: c - 1 };
+        }
+    } else { // type === 'sum', '/' diagonal, Top-Right to Bottom-Left is 'forward'
+        if (tile.orientation === 'up') {
+            // From U at (r,c), forward is D at (r+1, c). Backward is D at (r, c+1).
+            return isForward ? { r: r + 1, c: c } : { r: r, c: c + 1 };
+        } else { // 'down'
+            // From D at (r,c), forward is U at (r, c-1). Backward is U at (r-1, c).
+            return isForward ? { r: r, c: c - 1 } : { r: r - 1, c: c };
         }
     }
   };
@@ -218,8 +222,10 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
             const component: { r: number, c: number }[] = [];
             const queue: { r: number; c: number }[] = [{ r, c }];
             const componentVisited = new Set<string>([startKey]);
-            globalVisited.add(startKey); 
 
+            // Important: Don't mark as globally visited until after the component is found,
+            // to avoid issues with single non-matching tiles.
+            
             while (queue.length > 0) {
                 const currentPos = queue.shift()!;
                 component.push(currentPos);
@@ -231,11 +237,13 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
                     if (neighborTile && !componentVisited.has(neighborKey) && neighborTile.color === startTile.color) {
                         componentVisited.add(neighborKey);
-                        globalVisited.add(neighborKey); 
                         queue.push(neighborPos);
                     }
                 }
             }
+
+            // After finding the full component of this color, mark all its tiles as globally visited.
+            component.forEach(pos => globalVisited.add(`${pos.r},${pos.c}`));
 
             if (component.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
                 hasMatches = true;
