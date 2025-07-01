@@ -114,10 +114,10 @@ export function GridDisplay({
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
             determinedAxis = 'row';
         } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) {
-            // This is a '\' diagonal (top-left to bottom-right or vice versa)
+            // This is a '\' diagonal (top-left to bottom-right or vice versa) which is at 60 degrees.
             determinedAxis = 'diff';
         } else if ((angle > 90 && angle < 150) || (angle < -30 && angle > -90)) {
-            // This is a '/' diagonal (top-right to bottom-left or vice versa)
+            // This is a '/' diagonal (top-right to bottom-left or vice versa) which is at 120 degrees.
             determinedAxis = 'sum';
         }
 
@@ -135,10 +135,10 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        // `sum` is '/' which is ~150deg. `diff` is '\' which is ~30deg.
+        // `sum` is '/' which is at 120deg. `diff` is '\' which is at 60deg.
         const axisAngleRad = newDragAxisLocked === 'row' ? 0 
-                             : newDragAxisLocked === 'sum' ? (5 * Math.PI) / 6 // 150 degrees
-                             : Math.PI / 6; // 30 degrees
+                             : newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 // 120 degrees
+                             : Math.PI / 3; // 60 degrees
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -172,7 +172,7 @@ export function GridDisplay({
     if (commitParams) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = commitParams;
 
-      // The distance between the centers of two adjacent tiles in a row is TILE_BASE_WIDTH.
+      // The distance between the centers of two adjacent tiles in a row is TILE_BASE_WIDTH / 2.
       // We use this as a consistent unit for determining slide steps.
       const effectiveTileShiftUnit = TILE_BASE_WIDTH / 2;
 
@@ -239,8 +239,8 @@ export function GridDisplay({
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.dragAxisLocked) {
               const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 
-                                 : activeDrag.dragAxisLocked === 'sum' ? (5 * Math.PI) / 6 // 150 degrees
-                                 : Math.PI / 6; // 30 degrees
+                                 : activeDrag.dragAxisLocked === 'sum' ? (2 * Math.PI) / 3 // 120 degrees
+                                 : Math.PI / 3; // 60 degrees
               
               deltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
               deltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
@@ -286,4 +286,3 @@ export function GridDisplay({
     </div>
   );
 }
-

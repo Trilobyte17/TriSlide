@@ -64,23 +64,15 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
 
     if (type === 'diff') { // '\' diagonal, TL to BR is 'forward'
         if (tile.orientation === 'up') {
-            // From an UP tile, forward ('down-right') is to the DOWN tile below it.
-            // Backward ('up-left') is to the DOWN tile to its left.
             return isForward ? { r: r + 1, c: c } : { r: r, c: c - 1 };
         } else { // 'down'
-            // From a DOWN tile, forward ('down-right') is to the UP tile to its right.
-            // Backward ('up-left') is to the UP tile above it.
             return isForward ? { r: r, c: c + 1 } : { r: r - 1, c: c };
         }
     } else { // type === 'sum', '/' diagonal, TR to BL is 'forward'
         if (tile.orientation === 'up') {
-            // From an UP tile, forward ('down-left') is to the DOWN tile below it.
-            // Backward ('up-right') is to the DOWN tile to its right.
-            return isForward ? { r: r + 1, c: c } : { r: r, c: c + 1 };
+            return isForward ? { r: r, c: c - 1 } : { r: r, c: c + 1 };
         } else { // 'down'
-            // From a DOWN tile, forward ('down-left') is to the UP tile to its left.
-            // Backward ('up-right') is to the UP tile above it.
-            return isForward ? { r: r, c: c - 1 } : { r: r - 1, c: c };
+            return isForward ? { r: r + 1, c: c } : { r: r - 1, c: c };
         }
     }
   };
@@ -154,7 +146,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: sourceTileData.orientation,
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: false,
         isMatched: false,
       };
@@ -190,17 +182,15 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     const isValid = (nr: number, nc: number) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr]?.[nc];
 
-    // Horizontal neighbors are always to the left and right on the same row.
+    // An up-pointing triangle touches its horizontal neighbors and the down-pointing one below it.
+    // A down-pointing triangle touches its horizontal neighbors and the up-pointing one above it.
     if (isValid(r, c - 1)) neighbors.push({ r, c: c - 1 });
     if (isValid(r, c + 1)) neighbors.push({ r, c: c + 1 });
     
-    // The third neighbor's position depends on the tile's orientation.
-    if (tile.orientation === 'down') {
-        // A down-pointing triangle's third neighbor is the up-pointing triangle it shares its horizontal base with.
-        if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c });
-    } else { // 'up'
-        // An up-pointing triangle's third neighbor is the down-pointing triangle it shares its horizontal base with.
+    if (tile.orientation === 'up') {
         if (isValid(r + 1, c)) neighbors.push({ r: r + 1, c });
+    } else { // 'down'
+        if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c });
     }
 
     return neighbors;
