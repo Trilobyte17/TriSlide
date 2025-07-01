@@ -58,36 +58,37 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     let r = startR;
     let c = startC;
 
-    // Traverse to the start of the line
-    while (true) {
-        const tile = grid[r]?.[c];
-        if (!tile) break;
+    const getNextInWalk = (currR: number, currC: number, walkDir: 'forward' | 'backward') => {
+        const tile = grid[currR]?.[currC];
+        if (!tile) return null;
 
-        let prevR = -1, prevC = -1;
-
-        if (type === 'sum') { // '/' diagonal, moving up-right
-            if (tile.orientation === 'up') {
-                prevR = r - 1; prevC = c;
-            } else { // 'down'
-                prevR = r; prevC = c + 1;
+        if (type === 'sum') { // '/' diagonal, visually goes from bottom-left to top-right
+            if (walkDir === 'forward') { // Moving "up" the line (up-right)
+                return tile.orientation === 'up' ? {r: currR, c: currC - 1} : {r: currR - 1, c: c};
+            } else { // Moving "down" the line (down-left)
+                return tile.orientation === 'up' ? {r: currR + 1, c: c} : {r: currR, c: currC + 1};
             }
-        } else { // 'diff', '\' diagonal, moving up-left
-            if (tile.orientation === 'up') {
-                prevR = r; prevC = c - 1;
-            } else { // 'down'
-                prevR = r - 1; prevC = c;
+        } else { // 'diff', '\' diagonal, visually goes from top-left to bottom-right
+            if (walkDir === 'forward') { // Moving "down" the line (down-right)
+                return tile.orientation === 'up' ? {r: currR + 1, c: c} : {r: currR, c: currC + 1};
+            } else { // Moving "up" the line (up-left)
+                return tile.orientation === 'up' ? {r: currR, c: currC - 1} : {r: currR - 1, c: c};
             }
         }
-        
-        if (isValid(prevR, prevC)) {
-            r = prevR;
-            c = prevC;
+    };
+    
+    // Traverse to the start of the line by going "backward" repeatedly
+    while (true) {
+        const prev = getNextInWalk(r, c, 'backward');
+        if (prev && isValid(prev.r, prev.c)) {
+            r = prev.r;
+            c = prev.c;
         } else {
             break;
         }
     }
 
-    // Now at the start, traverse down the line
+    // Now at the start, traverse to the end of the line by going "forward"
     const visited = new Set<string>();
     while (isValid(r, c)) {
         const key = `${r},${c}`;
@@ -95,33 +96,16 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
         visited.add(key);
         lineCoords.push({ r, c });
 
-        const tile = grid[r]?.[c];
-        if (!tile) break;
-
-        let nextR = -1, nextC = -1;
-        
-        if (type === 'sum') { // '/' diagonal, moving down-left
-            if (tile.orientation === 'up') {
-                nextR = r + 1; nextC = c;
-            } else { // 'down'
-                nextR = r; nextC = c - 1;
-            }
-        } else { // 'diff', '\' diagonal, moving down-right
-            if (tile.orientation === 'up') {
-                nextR = r + 1; nextC = c;
-            } else { // 'down'
-                nextR = r; nextC = c + 1;
-            }
-        }
-
-        if (isValid(nextR, nextC)) {
-            r = nextR;
-            c = nextC;
+        const next = getNextInWalk(r, c, 'forward');
+        if (next && isValid(next.r, next.c)) {
+            r = next.r;
+            c = next.c;
         } else {
             break;
         }
     }
 
+    // Sort to be safe for sliding logic which assumes a specific order
     lineCoords.sort((a, b) => {
         if (a.r !== b.r) return a.r - b.r;
         return a.c - b.c;
@@ -129,7 +113,6 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
 
     return lineCoords;
 };
-
 
 export const slideLine = (
   grid: GridData,
@@ -201,23 +184,22 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
 
     const isValid = (nr: number, nc: number) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr]?.[nc];
 
-    // Common horizontal neighbors
+    // Common horizontal neighbors (side-by-side)
     if (isValid(r, c - 1)) neighbors.push({ r, c: c - 1 });
     if (isValid(r, c + 1)) neighbors.push({ r, c: c + 1 });
 
     // The third neighbor's position depends on the tile's orientation ('up' or 'down' pointing).
     if (tile.orientation === 'up') {
-        // Up-pointing triangles have a neighbor above.
+        // Up-pointing triangles have a neighbor above them.
         if (isValid(r - 1, c)) {
             neighbors.push({ r: r - 1, c });
         }
     } else { // 'down'
-        // Down-pointing triangles have a neighbor below.
+        // Down-pointing triangles have a neighbor below them.
         if (isValid(r + 1, c)) {
             neighbors.push({ r: r + 1, c });
         }
     }
-
     return neighbors;
 };
 
