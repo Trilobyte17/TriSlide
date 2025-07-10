@@ -169,8 +169,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        // CRITICAL FIX: DO NOT recalculate orientation. A tile's orientation is intrinsic and does not change when it slides.
-        // orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), 
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), 
         isNew: false,
         isMatched: false,
       };
@@ -196,8 +195,7 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
             ...sourceTile,
             row: rowIndex,
             col: c,
-            // CRITICAL FIX: DO NOT recalculate orientation.
-            // orientation: getExpectedOrientation(rowIndex, c)
+            orientation: getExpectedOrientation(rowIndex, c)
         }
     } else {
         newGrid[rowIndex][c] = null;
@@ -215,20 +213,15 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
     let totalMatchCount = 0;
 
     const tilesToMark = new Set<string>();
-    const visitedForMatching = new Set<string>(); // Prevents re-checking a tile as a starting point for a new component search
-
+    
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < numVisualCols; c++) {
-            const startTileKey = `${r},${c}`;
-            if (visitedForMatching.has(startTileKey)) continue;
-
             const startTile = workingGrid[r]?.[c];
             if (!startTile) continue;
 
             const component: { r: number, c: number }[] = [];
             const queue: { r: number; c: number }[] = [{ r, c }];
-            const visitedForThisComponent = new Set<string>([startTileKey]);
-            visitedForMatching.add(startTileKey);
+            const visitedForThisComponent = new Set<string>([`${r},${c}`]);
             
             let head = 0;
             while (head < queue.length) {
@@ -245,7 +238,6 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
                     if (neighborTile && neighborTile.color === startTile.color) {
                         visitedForThisComponent.add(neighborKey);
-                        visitedForMatching.add(neighborKey); // Also mark as visited globally
                         queue.push(neighborPos);
                     }
                 }
