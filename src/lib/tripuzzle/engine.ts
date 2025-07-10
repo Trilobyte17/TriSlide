@@ -110,9 +110,11 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     }
 
     // Walk backward from the start point
-    const { r: nextR, c: nextC } = getNextInWalk(startR, startC, 'backward', type);
-    currentR = nextR;
-    currentC = nextC;
+    let nextR = startR, nextC = startC;
+    const { r: backR, c: backC } = getNextInWalk(nextR, nextC, 'backward', type);
+    currentR = backR;
+    currentC = backC;
+
     while (isValid(currentR, currentC)) {
         const key = `${currentR},${currentC}`;
         if (visited.has(key)) break;
@@ -148,7 +150,7 @@ export const slideLine = (
 ): GridData => {
   if (!lineCoords || lineCoords.length === 0) return grid;
 
-  const newGrid = grid.map(row => row.map(tile => tile ? {...tile, isNew: false, isMatched: false} : null));
+  const newGrid = grid.map(row => row.map(tile => tile ? {...tile} : null));
   const numCellsInLine = lineCoords.length;
 
   const originalTilesData: (Tile | null)[] = lineCoords.map(coord => {
@@ -169,8 +171,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        // A tile's orientation is intrinsic and does not change when it slides.
-        orientation: sourceTileData.orientation,
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: false,
         isMatched: false,
       };
@@ -184,8 +185,8 @@ export const slideLine = (
 export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | 'right'): GridData => {
   if (rowIndex < 0 || rowIndex >= grid.length) return grid;
   
-  const newGrid = grid.map(row => row.map(tile => tile ? {...tile, isNew: false, isMatched: false} : null));
-  const originalRowData = [...newGrid[rowIndex]];
+  const newGrid = grid.map(row => row.map(tile => tile ? {...tile} : null));
+  const originalRowData = newGrid[rowIndex].map(tile => tile ? {...tile} : null);
   const numCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
   for (let c = 0; c < numCols; c++) {
@@ -196,8 +197,7 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
             ...sourceTile,
             row: rowIndex,
             col: c,
-            // A tile's orientation is intrinsic and does not change when it slides.
-            orientation: sourceTile.orientation
+            orientation: getExpectedOrientation(rowIndex, c)
         }
     } else {
         newGrid[rowIndex][c] = null;
@@ -213,17 +213,17 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
     const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     let hasMatches = false;
     let totalMatchCount = 0;
+    const visitedForCycle = new Set<string>();
 
-    const tilesToMark = new Set<string>();
-    
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < numVisualCols; c++) {
             const startTile = workingGrid[r]?.[c];
-            if (!startTile) continue;
+            if (!startTile || visitedForCycle.has(`${r},${c}`)) continue;
 
             const component: { r: number, c: number }[] = [];
             const queue: { r: number; c: number }[] = [{ r, c }];
             const visitedForThisComponent = new Set<string>([`${r},${c}`]);
+            visitedForCycle.add(`${r},${c}`);
             
             let head = 0;
             while (head < queue.length) {
@@ -240,6 +240,7 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
                     if (neighborTile && neighborTile.color === startTile.color) {
                         visitedForThisComponent.add(neighborKey);
+                        visitedForCycle.add(neighborKey);
                         queue.push(neighborPos);
                     }
                 }
@@ -247,24 +248,15 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
             if (component.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
                 hasMatches = true;
+                totalMatchCount += component.length;
                 for (const {r: matchR, c: matchC} of component) {
-                    const key = `${matchR},${matchC}`;
-                    if (!tilesToMark.has(key)) {
-                        tilesToMark.add(key);
-                        totalMatchCount++;
+                    if (workingGrid[matchR]?.[matchC]) {
+                      workingGrid[matchR][matchC]!.isMatched = true;
                     }
                 }
             }
         }
     }
-
-    tilesToMark.forEach(key => {
-        const [r, c] = key.split(',').map(Number);
-        if (workingGrid[r]?.[c]) {
-            workingGrid[r][c]!.isMatched = true;
-        }
-    });
-
     return { newGrid: workingGrid, hasMatches, matchCount: totalMatchCount };
 };
 
@@ -367,3 +359,5 @@ export const checkGameOver = (grid: GridData): boolean => {
   }
   return true;
 };
+
+    
