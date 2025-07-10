@@ -50,42 +50,39 @@ export const getNeighbors = (r: number, c: number): { r: number; c: number }[] =
     const orientation = getExpectedOrientation(r, c);
     const neighbors: { r: number; c: number }[] = [];
 
-    // Horizontal neighbors are always the same
-    neighbors.push({ r: r, c: c - 1 });
-    neighbors.push({ r: r, c: c + 1 });
-
-    // Vertical neighbor depends on orientation
     if (orientation === 'up') {
-        neighbors.push({ r: r - 1, c: c });
+        neighbors.push({ r, c: c - 1 }); 
+        neighbors.push({ r, c: c + 1 }); 
+        neighbors.push({ r: r + 1, c: c }); 
     } else { // 'down'
-        neighbors.push({ r: r + 1, c: c });
+        neighbors.push({ r, c: c - 1 });
+        neighbors.push({ r, c: c + 1 });
+        neighbors.push({ r: r - 1, c: c });
     }
     
-    // Filter out invalid coordinates
     return neighbors.filter(pos => 
         pos.r >= 0 && pos.r < GAME_SETTINGS.GRID_HEIGHT_TILES &&
         pos.c >= 0 && pos.c < GAME_SETTINGS.VISUAL_TILES_PER_ROW
     );
 };
 
-// New robust diagonal finding logic
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): { r: number; c: number }[] => {
     const lineCoords: { r: number; c: number }[] = [];
     const visited = new Set<string>();
 
-    const getNext = (r: number, c: number, dir: 'forward' | 'backward') => {
+    const getNextInWalk = (r: number, c: number, dir: 'forward' | 'backward', lineType: DiagonalType) => {
         const orientation = getExpectedOrientation(r, c);
-        if (type === 'sum') { // '\' diagonal
-            if (orientation === 'up') {
-                return dir === 'forward' ? { r: r - 1, c: c + 1 } : { r: r + 1, c: c };
-            } else { // down
-                return dir === 'forward' ? { r: r, c: c + 1 } : { r: r - 1, c: c };
-            }
-        } else { // 'diff' diagonal, '/'
-            if (orientation === 'up') {
-                return dir === 'forward' ? { r: r - 1, c: c - 1 } : { r: r + 1, c: c };
-            } else { // down
-                return dir === 'forward' ? { r: r, c: c - 1 } : { r: r - 1, c: c };
+        if (lineType === 'sum') { // '\' diagonal
+             if (dir === 'forward') {
+                return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c - 1 };
+             } else { // backward
+                return orientation === 'up' ? { r: r, c: c + 1 } : { r: r - 1, c: c };
+             }
+        } else { // 'diff', '/' diagonal
+            if (dir === 'forward') {
+                return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c + 1 };
+            } else { // backward
+                return orientation === 'up' ? { r: r, c: c - 1 } : { r: r - 1, c: c };
             }
         }
     };
@@ -103,29 +100,37 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
         if (visited.has(key)) break;
         visited.add(key);
         lineCoords.push({ r: currentR, c: currentC });
-        const next = getNext(currentR, currentC, 'forward');
+        const next = getNextInWalk(currentR, currentC, 'forward', type);
         currentR = next.r;
         currentC = next.c;
     }
 
     // Walk backward from the start
-    const next = getNext(startR, startC, 'backward');
-    currentR = next.r;
-    currentC = next.c;
+    const { r: nextR, c: nextC } = getNextInWalk(startR, startC, 'backward', type);
+    currentR = nextR;
+    currentC = nextC;
     while (isValid(currentR, currentC)) {
         const key = `${currentR},${currentC}`;
         if (visited.has(key)) break;
         visited.add(key);
         lineCoords.push({ r: currentR, c: currentC });
-        const next = getNext(currentR, currentC, 'backward');
+        const next = getNextInWalk(currentR, currentC, 'backward', type);
         currentR = next.r;
         currentC = next.c;
     }
     
-    lineCoords.sort((a, b) => {
-        if (a.r !== b.r) return a.r - b.r;
-        return a.c - b.c;
-    });
+    // Sort consistently to enable cycle-shifting
+    if (type === 'sum') { // '\' diagonal, sort by increasing row, then increasing col
+      lineCoords.sort((a, b) => {
+          if (a.r !== b.r) return a.r - b.r;
+          return a.c - b.c;
+      });
+    } else { // '/' diagonal, sort by increasing row, then decreasing col
+      lineCoords.sort((a, b) => {
+          if (a.r !== b.r) return a.r - b.r;
+          return b.c - a.c;
+      });
+    }
 
     return lineCoords;
 };
