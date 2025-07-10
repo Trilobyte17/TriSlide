@@ -149,6 +149,10 @@ export const slideLine = (
       return tileAtCoord ? {...tileAtCoord} : null;
   });
 
+  // Determine if this is a diagonal slide and what type
+  const isDiagonalSlide = !lineCoords.every(coord => coord.r === lineCoords[0].r);
+  const diagonalType = isDiagonalSlide ? getDiagonalTypeFromCoords(lineCoords) : null;
+
   for (let i = 0; i < numCellsInLine; i++) {
     const targetCoord = lineCoords[i];
     
