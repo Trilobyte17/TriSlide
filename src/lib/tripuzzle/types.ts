@@ -40,7 +40,7 @@ export const GAME_SETTINGS = {
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const,
   SCORE_PER_MATCHED_TILE: 10,
   SLIDE_ANIMATION_DURATION: 150, // ms
-  MATCH_ANIMATION_DURATION: 3000, // 3 seconds
+  MATCH_ANIMATION_DURATION: 500, // ms, was 3000 for debug
   SPAWN_ANIMATION_DURATION: 250,
   DRAG_THRESHOLD: TARGET_TILE_BASE_WIDTH / 3,
   TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH,
@@ -69,9 +69,5 @@ export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
   // In an even row (0, 2, ...), even columns (0, 2, ..) are 'up'.
   // In an odd row (1, 3, ...), odd columns (1, 3, ..) are 'up'.
   // This simplifies to: if row and col have the same parity, it's 'up'.
-  if (r % 2 === 0) { // Even rows
-    return c % 2 === 0 ? 'up' : 'down';
-  } else { // Odd rows
-    return c % 2 !== 0 ? 'up' : 'down';
-  }
+  return (r % 2 === c % 2) ? 'up' : 'down';
 };
