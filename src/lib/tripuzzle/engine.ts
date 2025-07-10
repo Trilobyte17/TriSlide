@@ -292,7 +292,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
                 ...tile,
                 row: r,
                 col: c,
-                orientation: getExpectedOrientation(r, c),
                 isNew: false
             };
         } else {
@@ -358,5 +357,3 @@ export const checkGameOver = (grid: GridData): boolean => {
   }
   return true;
 };
-
-    
