@@ -49,7 +49,6 @@ export function Tile({ tile }: TileProps) {
       style={{
         ...tileInlineStyle,
         filter: filterStyle,
-        // The vanish animation handles opacity, so we don't want to fight it.
         opacity: tile.isMatched ? undefined : 1
       }}
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
@@ -69,13 +68,26 @@ export function Tile({ tile }: TileProps) {
           strokeWidth: currentBorderStrokeWidth,
         }}
       />
-      {/* Do not apply glossy effect if vanishing */}
       {!tile.isMatched && (
         <polygon
           points={points}
           style={{ fill: `url(#${uniqueGlossyId})` }}
         />
       )}
+      {/* Display a number on the tile */}
+      <text
+        x={SVG_WIDTH / 2}
+        y={tile.orientation === 'up' ? SVG_HEIGHT * 0.65 : SVG_HEIGHT * 0.45}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fill={tileStyle.color}
+        fontSize={SVG_WIDTH / 2.5}
+        fontWeight="bold"
+        className="select-none"
+        style={{pointerEvents: 'none'}}
+      >
+        {GAME_SETTINGS.COLORS.indexOf(tile.color)}
+      </text>
     </svg>
   );
 }

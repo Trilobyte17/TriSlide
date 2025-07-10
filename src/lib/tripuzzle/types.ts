@@ -12,7 +12,7 @@ export interface Tile {
 export type GridRow = (Tile | null)[];
 export type GridData = GridRow[];
 
-export type DiagonalType = 'sum' | 'diff'; // 'sum' for r+c=k (like '/'), 'diff' for r-c=k (like '\')
+export type DiagonalType = 'sum' | 'diff'; // 'sum' for r+c=k (like '\'), 'diff' for r-c=k (like '/')
 export type SlideDirection = 'forward' | 'backward';
 
 
@@ -40,13 +40,13 @@ export const GAME_SETTINGS = {
   COLORS: ['red', 'green', 'blue', 'yellow', 'purple'] as const,
   SCORE_PER_MATCHED_TILE: 10,
   SLIDE_ANIMATION_DURATION: 150, // ms
-  MATCH_ANIMATION_DURATION: 400,
-  SPAWN_ANIMATION_DURATION: 300,
+  MATCH_ANIMATION_DURATION: 300,
+  SPAWN_ANIMATION_DURATION: 250,
   DRAG_THRESHOLD: TARGET_TILE_BASE_WIDTH / 3,
   TILE_BASE_WIDTH: TARGET_TILE_BASE_WIDTH,
   TILE_HEIGHT: PRECISE_TILE_HEIGHT,
-  TILE_BORDER_WIDTH: 1,
-  TILE_BORDER_COLOR_HSL: "0 0% 0%", // Black border
+  TILE_BORDER_WIDTH: 1.5,
+  TILE_BORDER_COLOR_HSL: "0 0% 10%",
 } as const;
 
 export type TileColor = typeof GAME_SETTINGS.COLORS[number];

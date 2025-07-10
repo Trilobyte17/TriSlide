@@ -46,106 +46,63 @@ export const addInitialTiles = (grid: GridData): GridData => {
   return newGrid;
 };
 
-// Gets the coordinates of the 3 tiles that share a side with the given tile.
 export const getNeighbors = (r: number, c: number, grid: GridData): { r: number; c: number }[] => {
     const tile = grid[r]?.[c];
     if (!tile) return [];
 
-    const neighbors: { r: number; c: number }[] = [];
     const { rows } = getGridDimensions(grid);
     const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     const isValid = (nr: number, nc: number) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr]?.[nc] != null;
     
-    const potentialNeighbors: { r: number; c: number }[] = [];
+    const neighbors: { r: number; c: number }[] = [];
     
-    // Horizontal neighbors (always share a side)
-    potentialNeighbors.push({ r: r, c: c - 1 });
-    potentialNeighbors.push({ r: r, c: c + 1 });
-
-    // Vertical neighbor depends on orientation
+    // Horizontal neighbors are always side-touching
+    if (isValid(r, c - 1)) neighbors.push({ r: r, c: c - 1 });
+    if (isValid(r, c + 1)) neighbors.push({ r: r, c: c + 1 });
+    
+    // The third neighbor depends on the tile's orientation
     if (tile.orientation === 'up') {
-        potentialNeighbors.push({ r: r - 1, c: c }); // Above
+        // Up-pointing triangles touch the tile directly above
+        if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c: c });
     } else { // 'down'
-        potentialNeighbors.push({ r: r + 1, c: c }); // Below
+        // Down-pointing triangles touch the tile directly below
+        if (isValid(r + 1, c)) neighbors.push({ r: r + 1, c: c });
     }
-
-    for (const p of potentialNeighbors) {
-        if (isValid(p.r, p.c)) {
-            neighbors.push(p);
-        }
-    }
+    
     return neighbors;
 };
 
 
-// Helper for getTilesOnDiagonal. Defines the path of tiles touching at vertices.
-const getNextInWalk = (grid: GridData, r: number, c: number, type: DiagonalType, direction: 'forward' | 'backward'): { r: number; c: number } | null => {
-    const tile = grid[r]?.[c];
-    if (!tile) return null;
-
-    const isForward = direction === 'forward';
-
-    if (type === 'diff') { // '\' diagonal: TL to BR is forward
-        if (isForward) { // Moving right/down
-            return tile.orientation === 'up' ? { r: r, c: c + 1 } : { r: r + 1, c: c };
-        } else { // Moving left/up
-            return tile.orientation === 'up' ? { r: r - 1, c: c } : { r: r, c: c - 1 };
-        }
-    } else { // type === 'sum', '/' diagonal: TR to BL is forward
-        if (isForward) { // Moving left/down
-            return tile.orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c - 1 };
-        } else { // Moving right/up
-            return tile.orientation === 'up' ? { r: r, c: c + 1 } : { r: r - 1, c: c };
-        }
-    }
-};
-
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): { r: number; c: number }[] => {
-  const { rows: numGridRows } = getGridDimensions(grid);
   const lineCoords: { r: number; c: number }[] = [];
-  const visited = new Set<string>();
+  const { rows } = getGridDimensions(grid);
+  const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
-  const isValid = (r: number, c: number) =>
-    r >= 0 && r < numGridRows && c >= 0 && c < GAME_SETTINGS.VISUAL_TILES_PER_ROW && grid[r]?.[c] !== null;
+  const startTile = grid[startR]?.[startC];
+  if (!startTile) return [];
 
-  if (!isValid(startR, startC)) return [];
+  const constant = type === 'sum' ? startR + startC : startR - startC;
   
-  let r = startR;
-  let c = startC;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < numVisualCols; c++) {
+      if (grid[r][c] === null) continue;
 
-  // Traverse to the start of the line by going backward.
-  while (true) {
-    const prev = getNextInWalk(grid, r, c, type, 'backward');
-    if (prev && isValid(prev.r, prev.c)) {
-      const key = `${prev.r},${prev.c}`;
-      if(visited.has(key)) break; // Prevent infinite loops
-      visited.add(key);
-      r = prev.r;
-      c = prev.c;
-    } else {
-      break;
+      if (type === 'sum' && r + c === constant) {
+        lineCoords.push({ r, c });
+      } else if (type === 'diff' && r - c === constant) {
+        lineCoords.push({ r, c });
+      }
     }
   }
-  
-  visited.clear(); // Clear visited for the forward pass
 
-  // Now at the start, traverse to the end by going forward.
-  while (isValid(r, c)) {
-    const key = `${r},${c}`;
-    if (visited.has(key)) break;
-    visited.add(key);
-    lineCoords.push({ r, c });
+  // The order matters for sliding. We need to sort them visually.
+  // For 'sum' diagonals (\), sort by increasing row (top to bottom).
+  // For 'diff' diagonals (/), sort by increasing row (top to bottom).
+  lineCoords.sort((a, b) => a.r - b.r);
 
-    const next = getNextInWalk(grid, r, c, type, 'forward');
-    if (next && isValid(next.r, next.c)) {
-      r = next.r;
-      c = next.c;
-    } else {
-      break;
-    }
-  }
   return lineCoords;
 };
+
 
 export const slideLine = (
   grid: GridData,
@@ -176,7 +133,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // This is crucial
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: false,
         isMatched: false,
       };
@@ -215,12 +172,13 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
 export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatches: boolean, matchCount: number } => {
     const workingGrid = grid.map(row => row.map(tile => (tile ? { ...tile, isMatched: false } : null)));
     const { rows } = getGridDimensions(workingGrid);
+    const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     let hasMatches = false;
     let totalMatchCount = 0;
     const visitedForAnyMatch = new Set<string>();
 
     for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c++) {
+        for (let c = 0; c < numVisualCols; c++) {
             const startKey = `${r},${c}`;
             if (visitedForAnyMatch.has(startKey)) {
                 continue;
@@ -280,16 +238,14 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
 
   for (let c = 0; c < numVisualCols; c++) {
     const columnTiles = [];
-    // Collect all non-null tiles in the current column, from the bottom up
     for (let r = numRows - 1; r >= 0; r--) {
         if(newGrid[r][c]) {
             columnTiles.push(newGrid[r][c]!);
         }
     }
 
-    // Place the collected tiles at the bottom of the column
     for (let r = numRows - 1; r >= 0; r--) {
-        const tile = columnTiles.shift(); // Take from the start of the collected (bottom of grid)
+        const tile = columnTiles.shift();
         if(tile) {
             newGrid[r][c] = {
                 ...tile,
@@ -304,7 +260,6 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
     }
   }
 
-  // Spawn new tiles in any remaining empty slots
   for (let r_spawn = 0; r_spawn < numRows; r_spawn++) {
     for (let c_spawn = 0; c_spawn < numVisualCols; c_spawn++) {
       if (newGrid[r_spawn][c_spawn] === null) {

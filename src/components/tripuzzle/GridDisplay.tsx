@@ -113,12 +113,14 @@ export function GridDisplay({
         
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
             determinedAxis = 'row';
-        } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) {
-            // This is a '\' diagonal (top-left to bottom-right or vice versa) which is at 60 degrees.
-            determinedAxis = 'diff';
-        } else if ((angle > 90 && angle < 150) || (angle < -30 && angle > -90)) {
-            // This is a '/' diagonal (top-right to bottom-left or vice versa) which is at 120 degrees.
+        } else if (angle > 30 && angle < 90) { // bottom right -> '\'
             determinedAxis = 'sum';
+        } else if (angle < -30 && angle > -90) { // top right -> '\'
+            determinedAxis = 'sum';
+        } else if (angle > 90 && angle < 150) { // bottom left -> '/'
+            determinedAxis = 'diff';
+        } else { // top left -> '/'
+            determinedAxis = 'diff';
         }
 
         newDragAxisLocked = determinedAxis;
@@ -136,8 +138,8 @@ export function GridDisplay({
 
     if (newDragAxisLocked && newDraggedLineCoords) {
         const axisAngleRad = newDragAxisLocked === 'row' ? 0 
-                             : newDragAxisLocked === 'sum' ? (2 * Math.PI) / 3 // 120 degrees for '/'
-                             : Math.PI / 3; // 60 degrees for '\'
+                             : newDragAxisLocked === 'sum' ? Math.PI / 3 // 60 degrees for '\'
+                             : (2 * Math.PI) / 3; // 120 degrees for '/'
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
@@ -238,8 +240,8 @@ export function GridDisplay({
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.dragAxisLocked) {
               const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 
-                                 : activeDrag.dragAxisLocked === 'sum' ? (2 * Math.PI) / 3 // 120 degrees
-                                 : Math.PI / 3; // 60 degrees
+                                 : activeDrag.dragAxisLocked === 'sum' ? Math.PI / 3 // 60 degrees
+                                 : (2 * Math.PI) / 3; // 120 degrees
               
               deltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
               deltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);
