@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import type { GameState, GridData, DiagonalType, SlideDirection } from '@/lib/tripuzzle/types';
+import type { GameState, GridData, DiagonalType, SlideDirection, Tile } from '@/lib/tripuzzle/types';
 import { GAME_SETTINGS } from '@/lib/tripuzzle/types';
 import {
   initializeGrid,
@@ -23,6 +23,16 @@ import { Button } from '@/components/ui/button';
 
 const LOCAL_STORAGE_KEY = 'triSlideGameState_v9_final_layout';
 
+// Helper function to create a clean deep copy of the grid for checks
+const createCleanGridCopy = (grid: GridData): GridData => {
+  return grid.map(row => 
+    row.map(tile => 
+      tile ? { ...tile, isNew: false, isMatched: false } : null
+    )
+  );
+};
+
+
 export default function TriSlidePage() {
   const { toast } = useToast();
   const [gameState, setGameState] = useState<GameState>({
@@ -42,7 +52,7 @@ export default function TriSlidePage() {
 
   const processMatchesAndGravity = useCallback(async (currentGrid: GridData, initialScore: number): Promise<GameState> => {
     let score = initialScore;
-    let grid = JSON.parse(JSON.stringify(currentGrid)); 
+    let grid = createCleanGridCopy(currentGrid);
     let madeChangesInLoop;
     let loopCount = 0;
     const maxLoops = GAME_SETTINGS.GRID_HEIGHT_TILES * GAME_SETTINGS.VISUAL_TILES_PER_ROW * 2; 
@@ -88,7 +98,7 @@ export default function TriSlidePage() {
       isGameStarted: gameState.isGameStarted,
       isLoading: false 
     };
-  }, [toast, gameState.isGameOver, gameState.isGameStarted, setGameState]);
+  }, [toast, gameState.isGameOver, gameState.isGameStarted]);
 
 
   const createNewGame = useCallback(async () => {
@@ -113,7 +123,7 @@ export default function TriSlidePage() {
     } finally {
       setProcessingMoveWithLogging(false, "createNewGame_finish");
     }
-  }, [processMatchesAndGravity, toast, setProcessingMoveWithLogging, setGameState]);
+  }, [processMatchesAndGravity, toast, setProcessingMoveWithLogging]);
 
 
   useEffect(() => {
@@ -177,7 +187,7 @@ export default function TriSlidePage() {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
       await createNewGame(); 
     }
-  }, [processMatchesAndGravity, toast, createNewGame, setProcessingMoveWithLogging, setGameState]);
+  }, [processMatchesAndGravity, toast, createNewGame, setProcessingMoveWithLogging]);
 
   useEffect(() => {
     if (gameState.isGameStarted && !gameState.isLoading && !isProcessingMove && !gameState.isGameOver) {
@@ -200,34 +210,29 @@ export default function TriSlidePage() {
 
     setProcessingMoveWithLogging(true, "handleSlideCommit_start");
     
-    let temporaryGrid = JSON.parse(JSON.stringify(gameState.grid));
+    let temporaryGrid = createCleanGridCopy(gameState.grid);
     
     try {
-      for (let i = 0; i < numSteps; i++) {
-        if (lineType === 'row' && typeof identifier === 'number') {
+      if (lineType === 'row' && typeof identifier === 'number') {
+        for (let i = 0; i < numSteps; i++) {
           temporaryGrid = slideRow(temporaryGrid, identifier, directionForEngine as 'left' | 'right');
-        } else if ((lineType === 'sum' || lineType === 'diff') && typeof identifier === 'object') {
-          const lineCoords = getTilesOnDiagonal(temporaryGrid, identifier.r, identifier.c, lineType);
-          if (lineCoords.length > 0) { 
+        }
+      } else if ((lineType === 'sum' || lineType === 'diff') && typeof identifier === 'object') {
+        const lineCoords = getTilesOnDiagonal(temporaryGrid, identifier.r, identifier.c, lineType);
+        if (lineCoords.length > 0) { 
+          for (let i = 0; i < numSteps; i++) {
             temporaryGrid = slideLine(temporaryGrid, lineCoords, directionForEngine as SlideDirection, lineType);
-          } else {
-            break; 
           }
-        } else {
-          break; 
         }
       }
       
       const { hasMatches: slideCausedMatches } = findAndMarkMatches(temporaryGrid);
 
       if (slideCausedMatches) {
-        // First, update the grid to the slid state so the user sees the move complete.
         setGameState(prev => ({...prev, grid: temporaryGrid}));
         
-        // Wait for the slide animation to finish before processing matches.
         await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION + 50));
         
-        // Now, process the matches from the new board state.
         const finalStateFromProcessing = await processMatchesAndGravity(temporaryGrid, gameState.score);
         setGameState(finalStateFromProcessing);
       } else {
@@ -242,7 +247,7 @@ export default function TriSlidePage() {
     } finally {
       setProcessingMoveWithLogging(false, "handleSlideCommit_finish");
     }
-  }, [gameState, isProcessingMove, processMatchesAndGravity, toast, setProcessingMoveWithLogging, setGameState]);
+  }, [gameState, isProcessingMove, processMatchesAndGravity, toast, setProcessingMoveWithLogging]);
 
   if (gameState.isLoading && !showRestorePrompt) {
     return <div className="flex items-center justify-center min-h-screen text-xl">Loading TriSlide...</div>;
