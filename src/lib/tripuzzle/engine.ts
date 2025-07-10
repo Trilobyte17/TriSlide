@@ -56,16 +56,12 @@ export const getNeighbors = (r: number, c: number, grid: GridData): { r: number;
     
     const neighbors: { r: number; c: number }[] = [];
     
-    // Horizontal neighbors are always side-touching
     if (isValid(r, c - 1)) neighbors.push({ r: r, c: c - 1 });
     if (isValid(r, c + 1)) neighbors.push({ r: r, c: c + 1 });
     
-    // The third neighbor depends on the tile's orientation
     if (tile.orientation === 'up') {
-        // Up-pointing triangles touch the tile directly above
         if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c: c });
     } else { // 'down'
-        // Down-pointing triangles touch the tile directly below
         if (isValid(r + 1, c)) neighbors.push({ r: r + 1, c: c });
     }
     
@@ -81,24 +77,27 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
   const startTile = grid[startR]?.[startC];
   if (!startTile) return [];
 
-  const constant = type === 'sum' ? startR + startC : startR - startC;
-  
+  // A visual diagonal is composed of tiles from two mathematical lines.
+  // e.g., for 'sum' type, it's r+c=k and r+c=k-1
+  const constant1 = type === 'sum' ? startR + startC : startR - startC;
+  const constant2 = constant1 - 1;
+
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < numVisualCols; c++) {
       if (grid[r][c] === null) continue;
 
-      if (type === 'sum' && r + c === constant) {
-        lineCoords.push({ r, c });
-      } else if (type === 'diff' && r - c === constant) {
+      const currentConstant = type === 'sum' ? r + c : r - c;
+      if (currentConstant === constant1 || currentConstant === constant2) {
         lineCoords.push({ r, c });
       }
     }
   }
 
-  // The order matters for sliding. We need to sort them visually.
-  // For 'sum' diagonals (\), sort by increasing row (top to bottom).
-  // For 'diff' diagonals (/), sort by increasing row (top to bottom).
-  lineCoords.sort((a, b) => a.r - b.r);
+  // Sort by row, then column to ensure a consistent order for sliding.
+  lineCoords.sort((a, b) => {
+    if (a.r !== b.r) return a.r - b.r;
+    return a.c - b.c;
+  });
 
   return lineCoords;
 };
