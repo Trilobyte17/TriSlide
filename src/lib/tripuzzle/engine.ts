@@ -211,35 +211,32 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
     const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     let hasMatches = false;
     let totalMatchCount = 0;
-    const visitedForAnyMatch = new Set<string>();
+
+    const tilesToMark = new Set<string>();
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < numVisualCols; c++) {
-            const startKey = `${r},${c}`;
-            if (visitedForAnyMatch.has(startKey)) {
-                continue;
-            }
-
             const startTile = workingGrid[r]?.[c];
-            if (!startTile) {
-                continue;
-            }
+            if (!startTile) continue;
 
             const component: { r: number, c: number }[] = [];
             const queue: { r: number; c: number }[] = [{ r, c }];
-            const visitedForThisComponent = new Set<string>([startKey]);
+            const visitedForThisComponent = new Set<string>([`${r},${c}`]);
             
-            while (queue.length > 0) {
-                const currentPos = queue.shift()!;
+            let head = 0;
+            while (head < queue.length) {
+                const currentPos = queue[head++];
                 component.push(currentPos);
                 
                 const neighbors = getNeighbors(currentPos.r, currentPos.c);
 
                 for (const neighborPos of neighbors) {
                     const neighborKey = `${neighborPos.r},${neighborPos.c}`;
+                    if (visitedForThisComponent.has(neighborKey)) continue;
+
                     const neighborTile = workingGrid[neighborPos.r]?.[neighborPos.c];
 
-                    if (neighborTile && !visitedForThisComponent.has(neighborKey) && neighborTile.color === startTile.color) {
+                    if (neighborTile && neighborTile.color === startTile.color) {
                         visitedForThisComponent.add(neighborKey);
                         queue.push(neighborPos);
                     }
@@ -248,16 +245,24 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
             if (component.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
                 hasMatches = true;
-                totalMatchCount += component.length;
                 for (const {r: matchR, c: matchC} of component) {
-                    if (workingGrid[matchR]?.[matchC]) {
-                        workingGrid[matchR][matchC]!.isMatched = true;
-                        visitedForAnyMatch.add(`${matchR},${matchC}`);
+                    const key = `${matchR},${matchC}`;
+                    if (!tilesToMark.has(key)) {
+                        tilesToMark.add(key);
+                        totalMatchCount++;
                     }
                 }
             }
         }
     }
+
+    tilesToMark.forEach(key => {
+        const [r, c] = key.split(',').map(Number);
+        if (workingGrid[r]?.[c]) {
+            workingGrid[r][c]!.isMatched = true;
+        }
+    });
+
     return { newGrid: workingGrid, hasMatches, matchCount: totalMatchCount };
 };
 
