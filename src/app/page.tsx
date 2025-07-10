@@ -267,7 +267,7 @@ export default function TriSlidePage() {
           50% { transform: scale(1.1) rotate(-5deg); opacity: 0.5; filter: brightness(1.5); }
           100% { transform: scale(0.3) rotate(10deg); opacity: 0; }
         }
-        .animate-tile-vanish { animation: tile-vanish ${GAME_SETTINGS.MATCH_ANIMATION_DURATION}ms ease-in forwards; }
+        .animate-tile-vanish { animation: tile-vanish 500ms ease-in forwards; }
         
         .tile-matched-highlighting {
           animation: none !important;

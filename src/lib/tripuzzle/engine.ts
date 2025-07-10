@@ -169,7 +169,8 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), 
+        // CRITICAL FIX: Do NOT recalculate orientation here. A tile's orientation is intrinsic and does not change when it slides.
+        orientation: sourceTileData.orientation,
         isNew: false,
         isMatched: false,
       };
@@ -195,7 +196,8 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
             ...sourceTile,
             row: rowIndex,
             col: c,
-            orientation: getExpectedOrientation(rowIndex, c)
+            // CRITICAL FIX: Do NOT recalculate orientation.
+            orientation: sourceTile.orientation
         }
     } else {
         newGrid[rowIndex][c] = null;
@@ -267,7 +269,13 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 };
 
 export const removeMatchedTiles = (grid: GridData): GridData => {
-  return grid.map(row => row.map(tile => (tile && tile.isMatched ? null : tile)));
+  return grid.map(row => row.map(tile => {
+    if (tile && tile.isMatched) {
+      return null;
+    }
+    // Return a clean copy of the non-matched tile
+    return tile ? { ...tile, isNew: false, isMatched: false } : null;
+  }));
 };
 
 export const applyGravityAndSpawn = (grid: GridData): GridData => {

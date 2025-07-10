@@ -29,7 +29,13 @@ export function Tile({ tile }: TileProps) {
 
 
   if (tile.isMatched) {
-    tileClassName = "animate-tile-vanish";
+    // When matched, we don't apply the vanish animation directly,
+    // but we change the styles to highlight it.
+    // The vanish happens after the pause in page.tsx
+    tileClassName = "tile-matched-highlighting";
+    currentBorderStroke = `hsl(var(--debug-match-border-color))`;
+    currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH * 2;
+    filterStyle = `drop-shadow(0 0 5px hsl(var(--debug-match-border-color)))`;
   } else if (tile.isNew) {
     tileClassName = "animate-tile-spawn";
   }
@@ -49,7 +55,7 @@ export function Tile({ tile }: TileProps) {
       style={{
         ...tileInlineStyle,
         filter: filterStyle,
-        opacity: tile.isMatched ? undefined : 1
+        opacity: 1 // Keep opacity at 1, vanishing is handled later
       }}
       aria-label={`Tile with color ${tile.color} pointing ${tile.orientation}`}
     >
@@ -66,6 +72,7 @@ export function Tile({ tile }: TileProps) {
           fill: tileFillColor,
           stroke: currentBorderStroke,
           strokeWidth: currentBorderStrokeWidth,
+          transition: 'stroke 150ms ease-in-out, stroke-width 150ms ease-in-out',
         }}
       />
       {!tile.isMatched && (
