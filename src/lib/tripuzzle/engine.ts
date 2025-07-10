@@ -358,3 +358,5 @@ export const checkGameOver = (grid: GridData): boolean => {
   }
   return true;
 };
+
+    

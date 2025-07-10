@@ -108,15 +108,15 @@ export function GridDisplay({
     if (!newDragAxisLocked) {
       const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
       if (dragDistance > GAME_SETTINGS.DRAG_THRESHOLD) {
-        const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+        const angle = (Math.atan2(deltaY, deltaX) * 180 / Math.PI + 360) % 360; // Normalize angle to 0-360
         let determinedAxis: DragAxis | null = null;
         
-        if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
+        if ((angle >= 330 || angle <= 30) || (angle >= 150 && angle <= 210)) {
             determinedAxis = 'row';
-        } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { // Bottom-right or Top-left drag -> '\' diagonal
-            determinedAxis = 'sum'; // This corresponds to '\' visually
-        } else { // Bottom-left or Top-right drag -> '/' diagonal
-            determinedAxis = 'diff'; // This corresponds to '/' visually
+        } else if ((angle > 30 && angle < 90) || (angle > 210 && angle < 270)) { // Drag is down-right or up-left -> '\' diagonal
+            determinedAxis = 'sum'; 
+        } else { // Drag is down-left or up-right -> '/' diagonal
+            determinedAxis = 'diff';
         }
         
         newDragAxisLocked = determinedAxis;
@@ -133,12 +133,18 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
+        // Project the drag vector onto the axis vector
+        // Row: 0 degrees (horizontal)
+        // Sum ('\'): 60 degrees from horizontal
+        // Diff ('/'): 120 degrees from horizontal
         const axisAngleRad = newDragAxisLocked === 'row' ? 0 
-                             : newDragAxisLocked === 'sum' ? Math.PI / 3 // 60 degrees for '\'
-                             : (2 * Math.PI) / 3; // 120 degrees for '/'
+                             : newDragAxisLocked === 'sum' ? Math.PI / 3 // 60 deg
+                             : (2 * Math.PI) / 3; // 120 deg
         
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
+        
+        // Dot product of drag vector and axis unit vector gives the projected length
         newVisualOffset = deltaX * axisUnitVectorX + deltaY * axisUnitVectorY;
     }
     
@@ -283,3 +289,5 @@ export function GridDisplay({
     </div>
   );
 }
+
+    
