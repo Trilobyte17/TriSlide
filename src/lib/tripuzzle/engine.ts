@@ -75,6 +75,33 @@ export const getNeighbors = (r: number, c: number): { r: number; c: number }[] =
     );
 };
 
+// Helper function that was missing.
+const getDiagonalTypeFromCoords = (lineCoords: { r: number; c: number }[]): DiagonalType | null => {
+  if (lineCoords.length < 2) return null;
+  const first = lineCoords[0];
+  const second = lineCoords[1];
+
+  const firstOrientation = getExpectedOrientation(first.r, first.c);
+  if (firstOrientation === 'up') {
+      if (second.r > first.r) { // Moved down
+          return first.c === second.c ? 'sum' : 'diff'; // Simplified logic based on movement
+      }
+  } else { // 'down' orientation
+      if (second.c !== first.c) { // Moved sideways
+          return second.c > first.c ? 'sum' : 'diff';
+      }
+  }
+  // Fallback for other cases, infer from general direction
+  if ((second.r > first.r && second.c > first.c) || (second.r < first.r && second.c < first.c)) {
+    return 'sum'; // '\'
+  }
+  if ((second.r > first.r && second.c < first.c) || (second.r < first.r && second.c > first.c)) {
+    return 'diff'; // '/'
+  }
+
+  return 'sum'; // Default fallback
+};
+
 
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): { r: number; c: number }[] => {
     const lineCoords: { r: number; c: number }[] = [];
