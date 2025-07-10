@@ -114,9 +114,9 @@ export function GridDisplay({
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
             determinedAxis = 'row';
         } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { // Bottom-right or Top-left drag -> '\' diagonal
-            determinedAxis = 'sum';
+            determinedAxis = 'sum'; // This corresponds to '\' visually
         } else { // Bottom-left or Top-right drag -> '/' diagonal
-            determinedAxis = 'diff';
+            determinedAxis = 'diff'; // This corresponds to '/' visually
         }
         
         newDragAxisLocked = determinedAxis;

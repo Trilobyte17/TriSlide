@@ -78,15 +78,15 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
         const orientation = getExpectedOrientation(r, c);
         if (lineType === 'sum') { // '\' diagonal
              if (dir === 'forward') { // Moving "down-right" along the visual line
-                return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c - 1 };
+                return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c + 1 };
              } else { // backward, moving "up-left"
-                return orientation === 'up' ? { r: r, c: c + 1 } : { r: r - 1, c: c };
+                return orientation === 'up' ? { r: r, c: c - 1 } : { r: r - 1, c: c };
              }
         } else { // 'diff', '/' diagonal
             if (dir === 'forward') { // Moving "down-left" along the visual line
-                return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c + 1 };
+                return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c - 1 };
             } else { // backward, moving "up-right"
-                return orientation === 'up' ? { r: r, c: c - 1 } : { r: r - 1, c: c };
+                return orientation === 'up' ? { r: r, c: c + 1 } : { r: r - 1, c: c };
             }
         }
     };
