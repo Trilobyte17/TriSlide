@@ -169,7 +169,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        // CRITICAL FIX: Do NOT recalculate orientation here. A tile's orientation is intrinsic and does not change when it slides.
+        // A tile's orientation is intrinsic and does not change when it slides.
         orientation: sourceTileData.orientation,
         isNew: false,
         isMatched: false,
@@ -196,7 +196,7 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
             ...sourceTile,
             row: rowIndex,
             col: c,
-            // CRITICAL FIX: Do NOT recalculate orientation.
+            // A tile's orientation is intrinsic and does not change when it slides.
             orientation: sourceTile.orientation
         }
     } else {
