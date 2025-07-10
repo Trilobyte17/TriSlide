@@ -119,23 +119,10 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
         const key = `${currentR},${currentC}`;
         if (visited.has(key)) break;
         visited.add(key);
-        lineCoords.push({ r: currentR, c: currentC });
+        lineCoords.unshift({ r: currentR, c: currentC }); // unshift to maintain order
         const next = getNextInWalk(currentR, currentC, 'backward', type);
         currentR = next.r;
         currentC = next.c;
-    }
-    
-    // Sort consistently to enable cycle-shifting
-    if (type === 'sum') { // '\' diagonal, sort by increasing row, then increasing col
-      lineCoords.sort((a, b) => {
-          if (a.r !== b.r) return a.r - b.r;
-          return a.c - b.c;
-      });
-    } else { // '/' diagonal, sort by increasing row, then decreasing col
-      lineCoords.sort((a, b) => {
-          if (a.r !== b.r) return a.r - b.r;
-          return b.c - a.c;
-      });
     }
 
     return lineCoords;
@@ -145,10 +132,9 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
 export const slideLine = (
   grid: GridData,
   lineCoords: { r: number; c: number }[],
-  slideDirection: SlideDirection,
-  lineType: 'row' | DiagonalType
+  slideDirection: SlideDirection
 ): GridData => {
-  if (!lineCoords || lineCoords.length === 0) return grid;
+  if (!lineCoords || lineCoords.length < 2) return grid;
 
   const newGrid = grid.map(row => row.map(tile => tile ? {...tile} : null));
   const numCellsInLine = lineCoords.length;
@@ -171,7 +157,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // Orientation must be updated
         isNew: false,
         isMatched: false,
       };
@@ -197,7 +183,7 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
             ...sourceTile,
             row: rowIndex,
             col: c,
-            orientation: getExpectedOrientation(rowIndex, c)
+            orientation: getExpectedOrientation(rowIndex, c) // Orientation must be updated
         }
     } else {
         newGrid[rowIndex][c] = null;
@@ -213,17 +199,16 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
     const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
     let hasMatches = false;
     let totalMatchCount = 0;
-    const visitedForCycle = new Set<string>();
+    const matchedTiles = new Set<string>();
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < numVisualCols; c++) {
             const startTile = workingGrid[r]?.[c];
-            if (!startTile || visitedForCycle.has(`${r},${c}`)) continue;
+            if (!startTile) continue;
 
             const component: { r: number, c: number }[] = [];
             const queue: { r: number; c: number }[] = [{ r, c }];
             const visitedForThisComponent = new Set<string>([`${r},${c}`]);
-            visitedForCycle.add(`${r},${c}`);
             
             let head = 0;
             while (head < queue.length) {
@@ -240,7 +225,6 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
                     if (neighborTile && neighborTile.color === startTile.color) {
                         visitedForThisComponent.add(neighborKey);
-                        visitedForCycle.add(neighborKey);
                         queue.push(neighborPos);
                     }
                 }
@@ -248,15 +232,25 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
 
             if (component.length >= GAME_SETTINGS.MIN_MATCH_LENGTH) {
                 hasMatches = true;
-                totalMatchCount += component.length;
                 for (const {r: matchR, c: matchC} of component) {
-                    if (workingGrid[matchR]?.[matchC]) {
-                      workingGrid[matchR][matchC]!.isMatched = true;
-                    }
+                    matchedTiles.add(`${matchR},${matchC}`);
                 }
             }
         }
     }
+
+    if (hasMatches) {
+        matchedTiles.forEach(key => {
+            const [r_str, c_str] = key.split(',');
+            const r = parseInt(r_str, 10);
+            const c = parseInt(c_str, 10);
+            if (workingGrid[r]?.[c]) {
+                workingGrid[r][c]!.isMatched = true;
+            }
+        });
+        totalMatchCount = matchedTiles.size;
+    }
+
     return { newGrid: workingGrid, hasMatches, matchCount: totalMatchCount };
 };
 
@@ -320,6 +314,10 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
 };
 
 
+const deepCloneGrid = (grid: GridData): GridData => {
+    return grid.map(row => row.map(tile => (tile ? { ...tile } : null)));
+};
+
 export const checkGameOver = (grid: GridData): boolean => {
   const { rows: numRows } = getGridDimensions(grid);
 
@@ -327,10 +325,10 @@ export const checkGameOver = (grid: GridData): boolean => {
   if (initialCheckHasMatches) return false;
 
   for (let r_slide = 0; r_slide < numRows; r_slide++) {
-    let tempGridLeft = slideRow(JSON.parse(JSON.stringify(grid)), r_slide, 'left');
+    let tempGridLeft = slideRow(deepCloneGrid(grid), r_slide, 'left');
     if (findAndMarkMatches(tempGridLeft).hasMatches) return false;
 
-    let tempGridRight = slideRow(JSON.parse(JSON.stringify(grid)), r_slide, 'right');
+    let tempGridRight = slideRow(deepCloneGrid(grid), r_slide, 'right');
     if (findAndMarkMatches(tempGridRight).hasMatches) return false;
   }
 
@@ -339,25 +337,20 @@ export const checkGameOver = (grid: GridData): boolean => {
     for (let c_diag_start = 0; c_diag_start < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_diag_start++) {
       const diagonalTypes: DiagonalType[] = ['sum', 'diff'];
       for (const type of diagonalTypes) {
-
         const lineCoords = getTilesOnDiagonal(grid, r_diag_start, c_diag_start, type);
-        if (lineCoords.length < 1) continue;
+        if (lineCoords.length < GAME_SETTINGS.MIN_MATCH_LENGTH) continue;
 
-        const canonicalLineKeyCoords = lineCoords.map(lc => `${lc.r},${lc.c}`).sort().join('|');
-        const canonicalLineKey = `${type}-${canonicalLineKeyCoords}`;
-
+        const canonicalLineKey = `${type}-${lineCoords.map(lc => `${lc.r},${lc.c}`).join('|')}`;
         if (checkedDiagonals.has(canonicalLineKey)) continue;
         checkedDiagonals.add(canonicalLineKey);
-
-        let tempGridForward = slideLine(JSON.parse(JSON.stringify(grid)), lineCoords, 'forward', type);
+        
+        let tempGridForward = slideLine(deepCloneGrid(grid), lineCoords, 'forward');
         if (findAndMarkMatches(tempGridForward).hasMatches) return false;
 
-        let tempGridBackward = slideLine(JSON.parse(JSON.stringify(grid)), lineCoords, 'backward', type);
+        let tempGridBackward = slideLine(deepCloneGrid(grid), lineCoords, 'backward');
         if (findAndMarkMatches(tempGridBackward).hasMatches) return false;
       }
     }
   }
   return true;
 };
-
-    

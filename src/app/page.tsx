@@ -137,15 +137,15 @@ export default function TriSlidePage() {
            setShowRestorePrompt(true);
         } else {
           localStorage.removeItem(LOCAL_STORAGE_KEY);
-          createNewGame(); 
+          // createNewGame(); // Let the user decide
         }
       } catch (error) {
         console.error("Initial useEffect: Failed to parse saved game state, creating new game.", error);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
-        createNewGame(); 
+        // createNewGame(); // Let the user decide
       }
     } else {
-      createNewGame(); 
+       setGameState(prev => ({...prev, isLoading: false}));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
@@ -153,36 +153,35 @@ export default function TriSlidePage() {
 
   const handleRestoreGame = useCallback(async (restore: boolean) => {
     setShowRestorePrompt(false);
-    setProcessingMoveWithLogging(true, "handleRestoreGame_start"); 
     if (restore) {
-       const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
-       if (savedStateRaw) {
-         try {
-            const savedState = JSON.parse(savedStateRaw) as GameState;
-            if (savedState.grid && savedState.grid.length > 0 && savedState.grid[0]?.length > 0) {
-                
-                const processedRestoredState = await processMatchesAndGravity(savedState.grid, savedState.score);
-                
-                setGameState(currentState => ({ 
-                  ...currentState, 
-                  ...processedRestoredState, 
-                  isGameStarted: true,
-                  isLoading: false 
-                }));
-                toast({ title: "Game Restored", description: "Welcome back!" });
-                setProcessingMoveWithLogging(false, "handleRestoreGame_restore_success");
-            } else { 
-                localStorage.removeItem(LOCAL_STORAGE_KEY);
-                await createNewGame(); 
-            }
-         } catch (error) { 
-            console.error("Error parsing restored game state:", error);
+      const savedStateRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedStateRaw) {
+        try {
+          setProcessingMoveWithLogging(true, "handleRestoreGame_restore_start");
+          const savedState = JSON.parse(savedStateRaw) as GameState;
+          if (savedState.grid && savedState.grid.length > 0 && savedState.grid[0]?.length > 0) {
+            const processedRestoredState = await processMatchesAndGravity(savedState.grid, savedState.score);
+            setGameState(currentState => ({ 
+              ...currentState, 
+              ...processedRestoredState, 
+              isGameStarted: true,
+              isLoading: false 
+            }));
+            toast({ title: "Game Restored", description: "Welcome back!" });
+          } else { 
             localStorage.removeItem(LOCAL_STORAGE_KEY);
             await createNewGame(); 
-         }
-       } else { 
-           await createNewGame(); 
-       }
+          }
+        } catch (error) { 
+          console.error("Error parsing restored game state:", error);
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+          await createNewGame(); 
+        } finally {
+          setProcessingMoveWithLogging(false, "handleRestoreGame_restore_finish");
+        }
+      } else { 
+        await createNewGame(); 
+      }
     } else { 
       localStorage.removeItem(LOCAL_STORAGE_KEY);
       await createNewGame(); 
@@ -210,18 +209,19 @@ export default function TriSlidePage() {
 
     setProcessingMoveWithLogging(true, "handleSlideCommit_start");
     
+    // Create a temporary grid to test the slide on
     let temporaryGrid = createCleanGridCopy(gameState.grid);
     
     try {
       if (lineType === 'row' && typeof identifier === 'number') {
-        for (let i = 0; i < numSteps; i++) {
+        for (let i = 0; i < Math.abs(numSteps); i++) {
           temporaryGrid = slideRow(temporaryGrid, identifier, directionForEngine as 'left' | 'right');
         }
       } else if ((lineType === 'sum' || lineType === 'diff') && typeof identifier === 'object') {
         const lineCoords = getTilesOnDiagonal(temporaryGrid, identifier.r, identifier.c, lineType);
         if (lineCoords.length > 0) { 
-          for (let i = 0; i < numSteps; i++) {
-            temporaryGrid = slideLine(temporaryGrid, lineCoords, directionForEngine as SlideDirection, lineType);
+          for (let i = 0; i < Math.abs(numSteps); i++) {
+            temporaryGrid = slideLine(temporaryGrid, lineCoords, directionForEngine as SlideDirection);
           }
         }
       }
@@ -229,10 +229,7 @@ export default function TriSlidePage() {
       const { hasMatches: slideCausedMatches } = findAndMarkMatches(temporaryGrid);
 
       if (slideCausedMatches) {
-        setGameState(prev => ({...prev, grid: temporaryGrid}));
-        
-        await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SLIDE_ANIMATION_DURATION + 50));
-        
+        // The move is valid, so commit the slid grid and start the matching process
         const finalStateFromProcessing = await processMatchesAndGravity(temporaryGrid, gameState.score);
         setGameState(finalStateFromProcessing);
       } else {
@@ -249,7 +246,7 @@ export default function TriSlidePage() {
     }
   }, [gameState, isProcessingMove, processMatchesAndGravity, toast, setProcessingMoveWithLogging]);
 
-  if (gameState.isLoading && !showRestorePrompt) {
+  if (gameState.isLoading) {
     return <div className="flex items-center justify-center min-h-screen text-xl">Loading TriSlide...</div>;
   }
 
@@ -291,7 +288,7 @@ export default function TriSlidePage() {
           </div>
         )}
 
-        {!gameState.isLoading && !showRestorePrompt && (
+        {!showRestorePrompt && (
           <>
             <GameControls
               score={gameState.score}
@@ -307,7 +304,8 @@ export default function TriSlidePage() {
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-64">
-                <p className="text-xl mb-4">Click "New Game" to begin!</p>
+                 <p className="text-xl mb-4">Click "New Game" to begin!</p>
+                <Button onClick={createNewGame}>New Game</Button>
               </div>
             )}
             <GameOverDialog
@@ -325,4 +323,3 @@ export default function TriSlidePage() {
     </>
   );
 }
-    

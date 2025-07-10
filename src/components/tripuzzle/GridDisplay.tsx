@@ -133,10 +133,6 @@ export function GridDisplay({
     }
 
     if (newDragAxisLocked && newDraggedLineCoords) {
-        // Project the drag vector onto the axis vector
-        // Row: 0 degrees (horizontal)
-        // Sum ('\'): 60 degrees from horizontal
-        // Diff ('/'): 120 degrees from horizontal
         const axisAngleRad = newDragAxisLocked === 'row' ? 0 
                              : newDragAxisLocked === 'sum' ? Math.PI / 3 // 60 deg
                              : (2 * Math.PI) / 3; // 120 deg
@@ -144,7 +140,6 @@ export function GridDisplay({
         const axisUnitVectorX = Math.cos(axisAngleRad);
         const axisUnitVectorY = Math.sin(axisAngleRad);
         
-        // Dot product of drag vector and axis unit vector gives the projected length
         newVisualOffset = deltaX * axisUnitVectorX + deltaY * axisUnitVectorY;
     }
     
@@ -174,15 +169,14 @@ export function GridDisplay({
 
     if (commitParams) {
       const { dragAxisLocked, startTileR, startTileC, visualOffset } = commitParams;
-
+      
       const effectiveTileShiftUnit = dragAxisLocked === 'row' 
         ? TILE_BASE_WIDTH / 2 
         : TILE_BASE_WIDTH;
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
-      const numActualSteps = Math.abs(numStepsRaw);
       
-      if (numActualSteps > 0) {
+      if (numStepsRaw !== 0) {
         const lineTypeToCommit = dragAxisLocked;
         const identifierToCommit = dragAxisLocked === 'row' ? startTileR : { r: startTileR, c: startTileC };
         let directionForEngine: SlideDirection | ('left' | 'right');
@@ -194,7 +188,7 @@ export function GridDisplay({
         }
         
         setTimeout(() => {
-            onSlideCommitRef.current(lineTypeToCommit, identifierToCommit, directionForEngine, numActualSteps);
+            onSlideCommitRef.current(lineTypeToCommit, identifierToCommit, directionForEngine, numStepsRaw);
         }, 0);
       }
     }
@@ -256,7 +250,7 @@ export function GridDisplay({
             width: `${TILE_BASE_WIDTH}px`,
             height: `${TILE_HEIGHT}px`,
             transform: `translate(${deltaX}px, ${deltaY}px)`,
-            transition: (activeDrag === null && !isProcessingMove) ? `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out, opacity ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out` : 'none',
+            transition: (activeDrag === null) ? `transform ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out, opacity ${GAME_SETTINGS.SLIDE_ANIMATION_DURATION}ms ease-out` : 'none',
             zIndex: 1, 
             cursor: (activeDrag || isProcessingMove) ? 'default' : 'grab',
           };
@@ -289,5 +283,3 @@ export function GridDisplay({
     </div>
   );
 }
-
-    
