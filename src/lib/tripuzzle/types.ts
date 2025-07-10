@@ -66,6 +66,12 @@ export const getRandomColor = (): TileColor => {
 };
 
 export const getExpectedOrientation = (r: number, c: number): 'up' | 'down' => {
-  // (r+c) is even -> down, (r+c) is odd -> up
-  return (r + c) % 2 === 0 ? 'down' : 'up';
+  // In an even row (0, 2, ...), even columns (0, 2, ..) are 'up'.
+  // In an odd row (1, 3, ...), odd columns (1, 3, ..) are 'up'.
+  // This simplifies to: if row and col have the same parity, it's 'up'.
+  if (r % 2 === 0) { // Even rows
+    return c % 2 === 0 ? 'up' : 'down';
+  } else { // Odd rows
+    return c % 2 !== 0 ? 'up' : 'down';
+  }
 };

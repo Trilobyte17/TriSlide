@@ -272,43 +272,44 @@ export const removeMatchedTiles = (grid: GridData): GridData => {
 
 export const applyGravityAndSpawn = (grid: GridData): GridData => {
   let newGrid = grid.map(row =>
-    row.map(t => (t ? { ...t, isMatched: false } : null))
+    row.map(t => (t ? { ...t, isMatched: false, isNew: false } : null))
   );
   const { rows: numRows } = getGridDimensions(newGrid);
   const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
+  // Apply gravity column by column
   for (let c = 0; c < numVisualCols; c++) {
-    const columnTiles = [];
+    let emptyRow = numRows - 1; // Start checking for empty spots from the bottom
+    // Iterate upwards from the bottom of the column
     for (let r = numRows - 1; r >= 0; r--) {
-        if(newGrid[r][c]) {
-            columnTiles.push(newGrid[r][c]!);
+      if (newGrid[r][c] !== null) {
+        if (r !== emptyRow) {
+          // If there's a tile and it's not where it should be, move it down
+          const tileToMove = newGrid[r][c]!;
+          newGrid[emptyRow][c] = {
+            ...tileToMove,
+            row: emptyRow,
+            col: c,
+            orientation: getExpectedOrientation(emptyRow, c), // IMPORTANT: Update orientation for new position
+            isNew: false, // It's a falling tile, not a new one
+          };
+          newGrid[r][c] = null; // Vacate the old spot
         }
-    }
-
-    for (let r = numRows - 1; r >= 0; r--) {
-        const tile = columnTiles.shift();
-        if(tile) {
-            newGrid[r][c] = {
-                ...tile,
-                row: r,
-                col: c,
-                isNew: false
-            };
-        } else {
-            newGrid[r][c] = null;
-        }
+        emptyRow--; // Move up to the next spot to fill
+      }
     }
   }
 
-  for (let r_spawn = 0; r_spawn < numRows; r_spawn++) {
-    for (let c_spawn = 0; c_spawn < numVisualCols; c_spawn++) {
-      if (newGrid[r_spawn][c_spawn] === null) {
-        newGrid[r_spawn][c_spawn] = {
+  // Spawn new tiles in any remaining empty spots at the top
+  for (let r = 0; r < numRows; r++) {
+    for (let c = 0; c < numVisualCols; c++) {
+      if (newGrid[r][c] === null) {
+        newGrid[r][c] = {
           id: generateUniqueId(),
           color: getRandomColor(),
-          row: r_spawn,
-          col: c_spawn,
-          orientation: getExpectedOrientation(r_spawn, c_spawn),
+          row: r,
+          col: c,
+          orientation: getExpectedOrientation(r, c),
           isNew: true,
           isMatched: false,
         };
@@ -317,6 +318,7 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
   }
   return newGrid;
 };
+
 
 export const checkGameOver = (grid: GridData): boolean => {
   const { rows: numRows } = getGridDimensions(grid);
