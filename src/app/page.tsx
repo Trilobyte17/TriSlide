@@ -137,12 +137,12 @@ export default function TriSlidePage() {
            setShowRestorePrompt(true);
         } else {
           localStorage.removeItem(LOCAL_STORAGE_KEY);
-          // createNewGame(); // Let the user decide
+          // Let the user decide
         }
       } catch (error) {
         console.error("Initial useEffect: Failed to parse saved game state, creating new game.", error);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
-        // createNewGame(); // Let the user decide
+        // Let the user decide
       }
     } else {
        setGameState(prev => ({...prev, isLoading: false}));

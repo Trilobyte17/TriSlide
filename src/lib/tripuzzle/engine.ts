@@ -128,6 +128,10 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     return lineCoords;
 };
 
+// Creates a deep copy of the grid state
+const deepCloneGrid = (grid: GridData): GridData => {
+  return grid.map(row => row.map(tile => (tile ? { ...tile } : null)));
+};
 
 export const slideLine = (
   grid: GridData,
@@ -136,7 +140,7 @@ export const slideLine = (
 ): GridData => {
   if (!lineCoords || lineCoords.length < 2) return grid;
 
-  const newGrid = grid.map(row => row.map(tile => tile ? {...tile} : null));
+  const newGrid = deepCloneGrid(grid);
   const numCellsInLine = lineCoords.length;
 
   const originalTilesData: (Tile | null)[] = lineCoords.map(coord => {
@@ -157,7 +161,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // Orientation must be updated
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: false,
         isMatched: false,
       };
@@ -171,7 +175,7 @@ export const slideLine = (
 export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | 'right'): GridData => {
   if (rowIndex < 0 || rowIndex >= grid.length) return grid;
   
-  const newGrid = grid.map(row => row.map(tile => tile ? {...tile} : null));
+  const newGrid = deepCloneGrid(grid);
   const originalRowData = newGrid[rowIndex].map(tile => tile ? {...tile} : null);
   const numCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
 
@@ -183,7 +187,7 @@ export const slideRow = (grid: GridData, rowIndex: number, direction: 'left' | '
             ...sourceTile,
             row: rowIndex,
             col: c,
-            orientation: getExpectedOrientation(rowIndex, c) // Orientation must be updated
+            orientation: getExpectedOrientation(rowIndex, c)
         }
     } else {
         newGrid[rowIndex][c] = null;
@@ -284,8 +288,8 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
             ...tileToMove,
             row: emptyRow,
             col: c,
-            orientation: getExpectedOrientation(emptyRow, c), // IMPORTANT: Update orientation for new position
-            isNew: false, // It's a falling tile, not a new one
+            orientation: getExpectedOrientation(emptyRow, c),
+            isNew: false, 
           };
           newGrid[r][c] = null; // Vacate the old spot
         }
@@ -314,43 +318,49 @@ export const applyGravityAndSpawn = (grid: GridData): GridData => {
 };
 
 
-const deepCloneGrid = (grid: GridData): GridData => {
-    return grid.map(row => row.map(tile => (tile ? { ...tile } : null)));
-};
-
 export const checkGameOver = (grid: GridData): boolean => {
   const { rows: numRows } = getGridDimensions(grid);
 
-  const { hasMatches: initialCheckHasMatches } = findAndMarkMatches(grid);
-  if (initialCheckHasMatches) return false;
-
-  for (let r_slide = 0; r_slide < numRows; r_slide++) {
-    let tempGridLeft = slideRow(deepCloneGrid(grid), r_slide, 'left');
-    if (findAndMarkMatches(tempGridLeft).hasMatches) return false;
-
-    let tempGridRight = slideRow(deepCloneGrid(grid), r_slide, 'right');
-    if (findAndMarkMatches(tempGridRight).hasMatches) return false;
+  // An immediate check to see if the board already has matches.
+  // This can happen after a cascade. If so, it's not game over.
+  if (findAndMarkMatches(grid).hasMatches) {
+    return false;
   }
 
+  // Check all possible row slides
+  for (let r = 0; r < numRows; r++) {
+    // A single slide in one direction is enough to check, as sliding
+    // the other way just produces a permutation of the same state.
+    const tempGrid = slideRow(deepCloneGrid(grid), r, 'left');
+    if (findAndMarkMatches(tempGrid).hasMatches) {
+      return false; // Found a possible move
+    }
+  }
+
+  // Check all possible diagonal slides
   const checkedDiagonals = new Set<string>();
-  for (let r_diag_start = 0; r_diag_start < numRows; r_diag_start++) {
-    for (let c_diag_start = 0; c_diag_start < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c_diag_start++) {
+  for (let r = 0; r < numRows; r++) {
+    for (let c = 0; c < GAME_SETTINGS.VISUAL_TILES_PER_ROW; c++) {
+      if (!grid[r][c]) continue; // Skip empty cells
+
       const diagonalTypes: DiagonalType[] = ['sum', 'diff'];
       for (const type of diagonalTypes) {
-        const lineCoords = getTilesOnDiagonal(grid, r_diag_start, c_diag_start, type);
-        if (lineCoords.length < GAME_SETTINGS.MIN_MATCH_LENGTH) continue;
-
-        const canonicalLineKey = `${type}-${lineCoords.map(lc => `${lc.r},${lc.c}`).join('|')}`;
-        if (checkedDiagonals.has(canonicalLineKey)) continue;
-        checkedDiagonals.add(canonicalLineKey);
+        const lineCoords = getTilesOnDiagonal(grid, r, c, type);
         
-        let tempGridForward = slideLine(deepCloneGrid(grid), lineCoords, 'forward');
-        if (findAndMarkMatches(tempGridForward).hasMatches) return false;
+        // Ensure the line is long enough to be worth checking and is unique
+        if (lineCoords.length < GAME_SETTINGS.MIN_MATCH_LENGTH) continue;
+        const canonicalKey = `${type}-${lineCoords.map(lc => `${lc.r},${lc.c}`).join('|')}`;
+        if (checkedDiagonals.has(canonicalKey)) continue;
+        checkedDiagonals.add(canonicalKey);
 
-        let tempGridBackward = slideLine(deepCloneGrid(grid), lineCoords, 'backward');
-        if (findAndMarkMatches(tempGridBackward).hasMatches) return false;
+        const tempGrid = slideLine(deepCloneGrid(grid), lineCoords, 'forward');
+        if (findAndMarkMatches(tempGrid).hasMatches) {
+          return false; // Found a possible move
+        }
       }
     }
   }
+
+  // If we've checked all possible moves and found no matches, it's game over.
   return true;
 };
