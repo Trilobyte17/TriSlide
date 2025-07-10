@@ -46,60 +46,88 @@ export const addInitialTiles = (grid: GridData): GridData => {
   return newGrid;
 };
 
-export const getNeighbors = (r: number, c: number, grid: GridData): { r: number; c: number }[] => {
-    const tile = grid[r]?.[c];
-    if (!tile) return [];
-
-    const { rows } = getGridDimensions(grid);
-    const cols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
-    const isValid = (nr: number, nc: number) => nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr]?.[nc] != null;
-    
+export const getNeighbors = (r: number, c: number): { r: number; c: number }[] => {
+    const orientation = getExpectedOrientation(r, c);
     const neighbors: { r: number; c: number }[] = [];
-    
-    if (isValid(r, c - 1)) neighbors.push({ r: r, c: c - 1 });
-    if (isValid(r, c + 1)) neighbors.push({ r: r, c: c + 1 });
-    
-    if (tile.orientation === 'up') {
-        if (isValid(r - 1, c)) neighbors.push({ r: r - 1, c: c });
+
+    // Horizontal neighbors are always the same
+    neighbors.push({ r: r, c: c - 1 });
+    neighbors.push({ r: r, c: c + 1 });
+
+    // Vertical neighbor depends on orientation
+    if (orientation === 'up') {
+        neighbors.push({ r: r - 1, c: c });
     } else { // 'down'
-        if (isValid(r + 1, c)) neighbors.push({ r: r + 1, c: c });
+        neighbors.push({ r: r + 1, c: c });
     }
     
-    return neighbors;
+    // Filter out invalid coordinates
+    return neighbors.filter(pos => 
+        pos.r >= 0 && pos.r < GAME_SETTINGS.GRID_HEIGHT_TILES &&
+        pos.c >= 0 && pos.c < GAME_SETTINGS.VISUAL_TILES_PER_ROW
+    );
 };
 
-
+// New robust diagonal finding logic
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): { r: number; c: number }[] => {
-  const lineCoords: { r: number; c: number }[] = [];
-  const { rows } = getGridDimensions(grid);
-  const numVisualCols = GAME_SETTINGS.VISUAL_TILES_PER_ROW;
+    const lineCoords: { r: number; c: number }[] = [];
+    const visited = new Set<string>();
 
-  const startTile = grid[startR]?.[startC];
-  if (!startTile) return [];
+    const getNext = (r: number, c: number, dir: 'forward' | 'backward') => {
+        const orientation = getExpectedOrientation(r, c);
+        if (type === 'sum') { // '\' diagonal
+            if (orientation === 'up') {
+                return dir === 'forward' ? { r: r - 1, c: c + 1 } : { r: r + 1, c: c };
+            } else { // down
+                return dir === 'forward' ? { r: r, c: c + 1 } : { r: r - 1, c: c };
+            }
+        } else { // 'diff' diagonal, '/'
+            if (orientation === 'up') {
+                return dir === 'forward' ? { r: r - 1, c: c - 1 } : { r: r + 1, c: c };
+            } else { // down
+                return dir === 'forward' ? { r: r, c: c - 1 } : { r: r - 1, c: c };
+            }
+        }
+    };
+    
+    const isValid = (r: number, c: number) => 
+        r >= 0 && r < GAME_SETTINGS.GRID_HEIGHT_TILES && 
+        c >= 0 && c < GAME_SETTINGS.VISUAL_TILES_PER_ROW &&
+        grid[r]?.[c] !== null;
 
-  // A visual diagonal is composed of tiles from two mathematical lines.
-  // e.g., for 'sum' type, it's r+c=k and r+c=k-1
-  const constant1 = type === 'sum' ? startR + startC : startR - startC;
-  const constant2 = constant1 - 1;
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < numVisualCols; c++) {
-      if (grid[r][c] === null) continue;
-
-      const currentConstant = type === 'sum' ? r + c : r - c;
-      if (currentConstant === constant1 || currentConstant === constant2) {
-        lineCoords.push({ r, c });
-      }
+    // Walk forward
+    let currentR = startR;
+    let currentC = startC;
+    while (isValid(currentR, currentC)) {
+        const key = `${currentR},${currentC}`;
+        if (visited.has(key)) break;
+        visited.add(key);
+        lineCoords.push({ r: currentR, c: currentC });
+        const next = getNext(currentR, currentC, 'forward');
+        currentR = next.r;
+        currentC = next.c;
     }
-  }
 
-  // Sort by row, then column to ensure a consistent order for sliding.
-  lineCoords.sort((a, b) => {
-    if (a.r !== b.r) return a.r - b.r;
-    return a.c - b.c;
-  });
+    // Walk backward from the start
+    const next = getNext(startR, startC, 'backward');
+    currentR = next.r;
+    currentC = next.c;
+    while (isValid(currentR, currentC)) {
+        const key = `${currentR},${currentC}`;
+        if (visited.has(key)) break;
+        visited.add(key);
+        lineCoords.push({ r: currentR, c: currentC });
+        const next = getNext(currentR, currentC, 'backward');
+        currentR = next.r;
+        currentC = next.c;
+    }
+    
+    lineCoords.sort((a, b) => {
+        if (a.r !== b.r) return a.r - b.r;
+        return a.c - b.c;
+    });
 
-  return lineCoords;
+    return lineCoords;
 };
 
 
@@ -196,7 +224,7 @@ export const findAndMarkMatches = (grid: GridData): { newGrid: GridData, hasMatc
                 const currentPos = queue.shift()!;
                 component.push(currentPos);
                 
-                const neighbors = getNeighbors(currentPos.r, currentPos.c, workingGrid);
+                const neighbors = getNeighbors(currentPos.r, currentPos.c);
 
                 for (const neighborPos of neighbors) {
                     const neighborKey = `${neighborPos.r},${neighborPos.c}`;

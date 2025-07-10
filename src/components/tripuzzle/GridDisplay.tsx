@@ -113,13 +113,13 @@ export function GridDisplay({
         
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
             determinedAxis = 'row';
-        } else if (angle > 30 && angle < 90) { // bottom right -> '\'
+        } else if (angle > 30 && angle < 90) { // Bottom-right drag -> '\' diagonal
             determinedAxis = 'sum';
-        } else if (angle < -30 && angle > -90) { // top right -> '\'
-            determinedAxis = 'sum';
-        } else if (angle > 90 && angle < 150) { // bottom left -> '/'
+        } else if (angle > 90 && angle < 150) { // Bottom-left drag -> '/' diagonal
             determinedAxis = 'diff';
-        } else { // top left -> '/'
+        } else if (angle < -30 && angle > -90) { // Top-right drag -> '\' diagonal
+            determinedAxis = 'sum';
+        } else { // Top-left drag -> '/' diagonal
             determinedAxis = 'diff';
         }
 
@@ -175,7 +175,7 @@ export function GridDisplay({
 
       const effectiveTileShiftUnit = dragAxisLocked === 'row' 
         ? TILE_BASE_WIDTH / 2 
-        : TILE_BASE_WIDTH * Math.cos(Math.PI / 6);
+        : TILE_BASE_WIDTH * Math.cos(Math.PI / 6); // Effective width along diagonal
 
       const numStepsRaw = Math.round(visualOffset / effectiveTileShiftUnit);
       const numActualSteps = Math.abs(numStepsRaw);
