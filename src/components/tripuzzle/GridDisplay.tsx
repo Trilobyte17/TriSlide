@@ -113,16 +113,12 @@ export function GridDisplay({
         
         if ((angle >= -30 && angle <= 30) || angle >= 150 || angle <= -150) {
             determinedAxis = 'row';
-        } else if (angle > 30 && angle < 90) { // Bottom-right drag -> '\' diagonal
+        } else if ((angle > 30 && angle < 90) || (angle < -90 && angle > -150)) { // Bottom-right or Top-left drag -> '\' diagonal
             determinedAxis = 'sum';
-        } else if (angle > 90 && angle < 150) { // Bottom-left drag -> '/' diagonal
-            determinedAxis = 'diff';
-        } else if (angle < -30 && angle > -90) { // Top-right drag -> '\' diagonal
-            determinedAxis = 'sum';
-        } else { // Top-left drag -> '/' diagonal
+        } else { // Bottom-left or Top-right drag -> '/' diagonal
             determinedAxis = 'diff';
         }
-
+        
         newDragAxisLocked = determinedAxis;
 
         if (determinedAxis === 'row') {
@@ -240,8 +236,8 @@ export function GridDisplay({
 
           if (activeDrag && isPartOfActiveDrag && activeDrag.dragAxisLocked) {
               const axisAngleRad = activeDrag.dragAxisLocked === 'row' ? 0 
-                                 : activeDrag.dragAxisLocked === 'sum' ? Math.PI / 3 // 60 degrees
-                                 : (2 * Math.PI) / 3; // 120 degrees
+                                 : activeDrag.dragAxisLocked === 'sum' ? Math.PI / 3 // 60 degrees for '\'
+                                 : (2 * Math.PI) / 3; // 120 degrees for '/'
               
               deltaX = activeDrag.visualOffset * Math.cos(axisAngleRad);
               deltaY = activeDrag.visualOffset * Math.sin(axisAngleRad);

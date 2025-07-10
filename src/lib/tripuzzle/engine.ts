@@ -50,14 +50,17 @@ export const getNeighbors = (r: number, c: number): { r: number; c: number }[] =
     const orientation = getExpectedOrientation(r, c);
     const neighbors: { r: number; c: number }[] = [];
 
+    // All tiles have neighbors to the left and right on the same row.
+    neighbors.push({ r, c: c - 1 }); 
+    neighbors.push({ r, c: c + 1 }); 
+
+    // The third neighbor depends on the tile's orientation.
     if (orientation === 'up') {
-        neighbors.push({ r, c: c - 1 }); 
-        neighbors.push({ r, c: c + 1 }); 
-        neighbors.push({ r: r + 1, c: c }); 
+        // 'Up' triangles have a neighbor below them.
+        neighbors.push({ r: r + 1, c }); 
     } else { // 'down'
-        neighbors.push({ r, c: c - 1 });
-        neighbors.push({ r, c: c + 1 });
-        neighbors.push({ r: r - 1, c: c });
+        // 'Down' triangles have a neighbor above them.
+        neighbors.push({ r: r - 1, c });
     }
     
     return neighbors.filter(pos => 
@@ -66,6 +69,7 @@ export const getNeighbors = (r: number, c: number): { r: number; c: number }[] =
     );
 };
 
+
 export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: number, type: DiagonalType): { r: number; c: number }[] => {
     const lineCoords: { r: number; c: number }[] = [];
     const visited = new Set<string>();
@@ -73,15 +77,15 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     const getNextInWalk = (r: number, c: number, dir: 'forward' | 'backward', lineType: DiagonalType) => {
         const orientation = getExpectedOrientation(r, c);
         if (lineType === 'sum') { // '\' diagonal
-             if (dir === 'forward') {
+             if (dir === 'forward') { // Moving "down-right" along the visual line
                 return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c - 1 };
-             } else { // backward
+             } else { // backward, moving "up-left"
                 return orientation === 'up' ? { r: r, c: c + 1 } : { r: r - 1, c: c };
              }
         } else { // 'diff', '/' diagonal
-            if (dir === 'forward') {
+            if (dir === 'forward') { // Moving "down-left" along the visual line
                 return orientation === 'up' ? { r: r + 1, c: c } : { r: r, c: c + 1 };
-            } else { // backward
+            } else { // backward, moving "up-right"
                 return orientation === 'up' ? { r: r, c: c - 1 } : { r: r - 1, c: c };
             }
         }
@@ -92,7 +96,7 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
         c >= 0 && c < GAME_SETTINGS.VISUAL_TILES_PER_ROW &&
         grid[r]?.[c] !== null;
 
-    // Walk forward
+    // Walk forward from the start point
     let currentR = startR;
     let currentC = startC;
     while (isValid(currentR, currentC)) {
@@ -105,7 +109,7 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
         currentC = next.c;
     }
 
-    // Walk backward from the start
+    // Walk backward from the start point
     const { r: nextR, c: nextC } = getNextInWalk(startR, startC, 'backward', type);
     currentR = nextR;
     currentC = nextC;
@@ -165,7 +169,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // This is critical
         isNew: false,
         isMatched: false,
       };
