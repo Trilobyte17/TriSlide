@@ -35,7 +35,7 @@ export function Tile({ tile }: TileProps) {
     tileClassName = "tile-matched-highlighting";
     currentBorderStroke = `hsl(var(--debug-match-border-color))`;
     currentBorderStrokeWidth = GAME_SETTINGS.TILE_BORDER_WIDTH * 2;
-    filterStyle = `drop-shadow(0 0 5px hsl(var(--debug-match-border-color)))`;
+    // filterStyle removed to eliminate glow
   } else if (tile.isNew) {
     tileClassName = "animate-tile-spawn";
   }

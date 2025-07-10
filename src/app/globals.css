@@ -48,7 +48,7 @@ body {
     --tile-text: 220 25% 20%; 
     --tile-active-border: 30 90% 60%; 
     --tile-potential-merge-glow: 30 90% 70%;
-    --debug-match-border-color: 300 100% 50%; /* Bright Magenta for debug */
+    --debug-match-border-color: 270 40% 25%; /* Dark Purple for debug */
 
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -105,7 +105,7 @@ body {
     --tile-text: 0 0% 95%;
     --tile-active-border: 30 80% 65%;
     --tile-potential-merge-glow: 30 80% 55%;
-    --debug-match-border-color: 300 100% 60%; /* Bright Magenta for debug - slightly lighter for dark mode */
+    --debug-match-border-color: 270 50% 45%; /* Dark Purple for debug - slightly lighter for dark mode */
 
 
     --chart-1: 220 70% 50%;
