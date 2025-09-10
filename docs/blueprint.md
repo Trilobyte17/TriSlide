@@ -1,19 +1,19 @@
-# **App Name**: TriPuzzle
+# **App Name**: TriSlide
 
 ## Core Features:
 
-- Grid Display: Display a triangular grid of tiles with numeric values.
-- Tile Interaction: Implement a drag-and-drop interface for tile manipulation and value combining.  Same number tiles will combine into the next higher number. Zero can only be created by combing '1' tiles.  Higher numbers combine down to zero. Game ends when no further valid moves are possible.
-- Score Tracking: Track the user's score based on tile combinations. Score is multiplied as higher number tiles are formed.
-- Game Persistence: Implement local storage of user's game state, using their username or an anonymous user id, and provide ability to restore to a previous game.
-- Animation Hints: A simple animation is shown for tiles which merge during gameplay. The goal of the animation is to improve usability for novice players to see valid moves.
+- Grid Display: Display a triangular grid of colored tiles.
+- Tile Interaction: Implement a drag-and-drop interface for sliding rows or diagonals of tiles to create matches of 3 or more tiles of the same color. Matched tiles are removed, and new tiles fall into place from the top.
+- Score Tracking: Track the user's score based on the number of matched tiles. Higher scores are achieved by creating longer matches.
+- Game Persistence: Implement local storage of user's game state, allowing users to resume previous games.
+- Animation Hints: Smooth animations for tile slides, matches, and new tile appearances to enhance user experience.
 
 ## Style Guidelines:
 
-- Pastel or muted color scheme for tiles.
-- Use a color to highlight currently active tiles during drag-and-drop.
-- Accent: Complementary color for score display and buttons.
-- Clean and readable font for numbers on tiles and score display.
+- Colorful tile scheme with distinct colors for each tile type.
+- Highlight active tiles during drag operations.
+- Accent: Complementary colors for score display and buttons.
+- Clean and readable font for score and controls.
 - Centralized triangular grid layout with score and controls at the top.
-- Smooth transitions for tile movements and combinations.
-- Minimalist icons for game controls (e.g., restart, settings).
+- Smooth transitions for tile movements and matches.
+- Minimalist icons for game controls (e.g., restart, new game).

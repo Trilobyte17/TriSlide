@@ -161,31 +161,25 @@ export const getTilesOnDiagonal = (grid: GridData, startR: number, startC: numbe
     return lineCoords;
 };
 
-export const slideLine = (
-  grid: GridData,
-  lineCoords: { r: number; c: number }[],
-  slideDirection: SlideDirection
-): GridData => {
-  if (!lineCoords || lineCoords.length < 2) return grid;
-
-  const newGrid = deepCloneGrid(grid); // Critical: Prevents state mutation.
-  const numCellsInLine = lineCoords.length;
-
-  const originalTilesData: (Tile | null)[] = lineCoords.map(coord => {
-      const tileAtCoord = grid[coord.r]?.[coord.c];
-      return tileAtCoord ? {...tileAtCoord} : null;
+const prepareOriginalTilesData = (grid: GridData, lineCoords: { r: number; c: number }[]): (Tile | null)[] => {
+  return lineCoords.map(coord => {
+    const tileAtCoord = grid[coord.r]?.[coord.c];
+    return tileAtCoord ? { ...tileAtCoord } : null;
   });
+};
 
-  // Determine if this is a diagonal slide and what type
-  const isDiagonalSlide = !lineCoords.every(coord => coord.r === lineCoords[0].r);
-  const diagonalType = isDiagonalSlide ? getDiagonalTypeFromCoords(lineCoords) : null;
+const applySlideToLine = (
+  newGrid: GridData,
+  lineCoords: { r: number; c: number }[],
+  originalTilesData: (Tile | null)[],
+  slideDirection: SlideDirection
+): void => {
+  const numCellsInLine = lineCoords.length;
+  const directionMultiplier = slideDirection === 'forward' ? -1 : 1;
 
   for (let i = 0; i < numCellsInLine; i++) {
     const targetCoord = lineCoords[i];
-    
-    const directionMultiplier = slideDirection === 'forward' ? -1 : 1;
     const sourceIndex = (i + directionMultiplier + numCellsInLine) % numCellsInLine;
-    
     const sourceTileData = originalTilesData[sourceIndex];
 
     if (sourceTileData) {
@@ -193,7 +187,7 @@ export const slideLine = (
         ...sourceTileData,
         row: targetCoord.r,
         col: targetCoord.c,
-        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c), // Correctly update orientation on move
+        orientation: getExpectedOrientation(targetCoord.r, targetCoord.c),
         isNew: false,
         isMatched: false,
       };
@@ -201,6 +195,20 @@ export const slideLine = (
       newGrid[targetCoord.r][targetCoord.c] = null;
     }
   }
+};
+
+export const slideLine = (
+  grid: GridData,
+  lineCoords: { r: number; c: number }[],
+  slideDirection: SlideDirection
+): GridData => {
+  if (!lineCoords || lineCoords.length < 2) return grid;
+
+  const newGrid = deepCloneGrid(grid);
+  const originalTilesData = prepareOriginalTilesData(grid, lineCoords);
+
+  applySlideToLine(newGrid, lineCoords, originalTilesData, slideDirection);
+
   return newGrid;
 };
 

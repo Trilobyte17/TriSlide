@@ -70,7 +70,7 @@ export function GridDisplay({
     };
   };
 
-  const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
+  const handleDragStart = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent> | React.TouchEvent<HTMLDivElement>, r: number, c: number) => {
     if (isProcessingMove || activeDragRef.current) return;
     if (event.type === 'mousedown') event.preventDefault();
 
@@ -142,7 +142,7 @@ export function GridDisplay({
         newVisualOffset = deltaX * axisUnitVectorX + deltaY * axisUnitVectorY;
     }
     
-    setActiveDrag(prevState => prevState ? ({
+    setActiveDrag((prevState: ActiveDragState | null) => prevState ? ({
       ...prevState,
       currentScreenX: clientX,
       currentScreenY: clientY,
@@ -213,22 +213,31 @@ export function GridDisplay({
   
   return (
     <div
-      className="relative rounded-lg shadow-inner select-none touch-none bg-muted"
+      className={`relative rounded-lg shadow-inner select-none touch-none bg-muted ${activeDrag ? 'ring-2 ring-primary' : ''}`}
       role="grid"
       aria-label="TriSlide game grid"
+      tabIndex={0}
       style={{
         width: `${styledContainerWidth}px`,
         height: `${styledContainerHeight}px`,
-        overflow: 'hidden', 
+        overflow: 'hidden',
       }}
       ref={gridRef}
+      onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
+        // Basic keyboard navigation - focus management
+        if (e.key === 'Tab') {
+          // Allow tab navigation through tiles
+          e.preventDefault();
+          // Could implement focus ring for tiles
+        }
+      }}
     >
       {gridData.map((row, rIndex) => {
         return row.slice(0, visualTilesPerRow).map((tileData, cIndex) => {
           if (!tileData) return null;
 
           const { x: baseX, y: baseY } = getTilePosition(rIndex, cIndex);
-          const isPartOfActiveDrag = activeDrag?.draggedLineCoords?.some(coord => coord.r === rIndex && coord.c === cIndex);
+          const isPartOfActiveDrag = activeDrag?.draggedLineCoords?.some((coord: { r: number; c: number }) => coord.r === rIndex && coord.c === cIndex);
           
           let deltaX = 0;
           let deltaY = 0;
@@ -269,8 +278,8 @@ export function GridDisplay({
             <div
               key={tileData.id} 
               style={tileStyle}
-              onMouseDown={(e) => handleDragStart(e, rIndex, cIndex)}
-              onTouchStart={(e) => handleDragStart(e, rIndex, cIndex)}
+              onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => handleDragStart(e, rIndex, cIndex)}
+              onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => handleDragStart(e, rIndex, cIndex)}
               role="gridcell"
               aria-label={`Tile at row ${rIndex + 1}, col ${cIndex + 1} with color ${tileData.color}`}
             >

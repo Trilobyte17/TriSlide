@@ -72,7 +72,7 @@ export default function TriSlidePage() {
         madeChangesInLoop = true;
         score += matchCount * GAME_SETTINGS.SCORE_PER_MATCHED_TILE;
 
-        setGameState(prev => ({ ...prev, grid: gridWithMatchesMarked, score, isLoading: false }));
+        setGameState((prev: GameState) => ({ ...prev, grid: gridWithMatchesMarked, score, isLoading: false }));
         await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.MATCH_ANIMATION_DURATION));
 
         const gridAfterRemoval = removeMatchedTiles(gridWithMatchesMarked);
@@ -80,7 +80,7 @@ export default function TriSlidePage() {
         
         grid = gridAfterGravity;
 
-        setGameState(prev => ({ ...prev, grid, score, isLoading: false }));
+        setGameState((prev: GameState) => ({ ...prev, grid, score, isLoading: false }));
         await new Promise(resolve => setTimeout(resolve, GAME_SETTINGS.SPAWN_ANIMATION_DURATION / 2)); 
       } else {
         grid = gridWithMatchesMarked; 
@@ -105,8 +105,11 @@ export default function TriSlidePage() {
     setProcessingMoveWithLogging(true, "createNewGame_start");
     try {
       const initialGridData = initializeGrid(GAME_SETTINGS.GRID_HEIGHT_TILES, GAME_SETTINGS.GRID_WIDTH_TILES);
+      if (!initialGridData || initialGridData.length === 0) {
+        throw new Error("Failed to initialize grid");
+      }
       let gridWithInitialTiles = addInitialTiles(initialGridData);
-      
+
       const finalInitialState = await processMatchesAndGravity(gridWithInitialTiles, 0);
 
       setGameState({
@@ -118,8 +121,9 @@ export default function TriSlidePage() {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
       toast({ title: "New Game Started!", description: "Drag rows or diagonals to match 3+ colors." });
     } catch (error) {
-      toast({ title: "Error", description: "Could not start a new game.", variant: "destructive" });
-      setGameState(prev => ({ ...prev, isLoading: false, isGameStarted: false, grid: [] }));
+      console.error("Error creating new game:", error);
+      toast({ title: "Error", description: "Could not start a new game. Please try again.", variant: "destructive" });
+      setGameState((prev: GameState) => ({ ...prev, isLoading: false, isGameStarted: false, grid: [] }));
     } finally {
       setProcessingMoveWithLogging(false, "createNewGame_finish");
     }
@@ -145,7 +149,7 @@ export default function TriSlidePage() {
         // Let the user decide
       }
     } else {
-       setGameState(prev => ({...prev, isLoading: false}));
+       setGameState((prev: GameState) => ({...prev, isLoading: false}));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
@@ -161,7 +165,7 @@ export default function TriSlidePage() {
           const savedState = JSON.parse(savedStateRaw) as GameState;
           if (savedState.grid && savedState.grid.length > 0 && savedState.grid[0]?.length > 0) {
             const processedRestoredState = await processMatchesAndGravity(savedState.grid, savedState.score);
-            setGameState(currentState => ({ 
+            setGameState((currentState: GameState) => ({
               ...currentState, 
               ...processedRestoredState, 
               isGameStarted: true,
@@ -199,7 +203,7 @@ export default function TriSlidePage() {
 
   const handleSlideCommit = useCallback(async (
     lineType: 'row' | DiagonalType,
-    identifier: number | { r: number; c: number }, 
+    identifier: number | { r: number; c: number },
     directionForEngine: SlideDirection | ('left' | 'right'),
     numSteps: number
   ) => {
@@ -208,24 +212,34 @@ export default function TriSlidePage() {
     }
 
     setProcessingMoveWithLogging(true, "handleSlideCommit_start");
-    
-    // Create a temporary grid to test the slide on
-    let temporaryGrid = createCleanGridCopy(gameState.grid);
-    
+
     try {
+      // Validate inputs
+      if (lineType === 'row' && typeof identifier !== 'number') {
+        throw new Error("Invalid identifier for row slide");
+      }
+      if ((lineType === 'sum' || lineType === 'diff') && (typeof identifier !== 'object' || !identifier.r || !identifier.c)) {
+        throw new Error("Invalid identifier for diagonal slide");
+      }
+
+      // Create a temporary grid to test the slide on
+      let temporaryGrid = createCleanGridCopy(gameState.grid);
+
       if (lineType === 'row' && typeof identifier === 'number') {
         for (let i = 0; i < Math.abs(numSteps); i++) {
           temporaryGrid = slideRow(temporaryGrid, identifier, directionForEngine as 'left' | 'right');
         }
       } else if ((lineType === 'sum' || lineType === 'diff') && typeof identifier === 'object') {
         const lineCoords = getTilesOnDiagonal(temporaryGrid, identifier.r, identifier.c, lineType);
-        if (lineCoords.length > 0) { 
+        if (lineCoords.length > 0) {
           for (let i = 0; i < Math.abs(numSteps); i++) {
             temporaryGrid = slideLine(temporaryGrid, lineCoords, directionForEngine as SlideDirection);
           }
+        } else {
+          throw new Error("No valid diagonal line found");
         }
       }
-      
+
       const { hasMatches: slideCausedMatches } = findAndMarkMatches(temporaryGrid);
 
       if (slideCausedMatches) {
@@ -236,11 +250,12 @@ export default function TriSlidePage() {
         // No match found, so the move is invalid.
         // The visual "snap back" is handled by GridDisplay resetting its drag state
         // while the underlying gameState.grid remains unchanged.
+        toast({ title: "Invalid Move", description: "This slide doesn't create any matches." });
       }
 
     } catch (error) {
       console.error("Error during slide commit:", error);
-      toast({title: "Slide Error", description: "Could not complete the move.", variant: "destructive"});
+      toast({title: "Slide Error", description: "Could not complete the move. Please try again.", variant: "destructive"});
     } finally {
       setProcessingMoveWithLogging(false, "handleSlideCommit_finish");
     }
