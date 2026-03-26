@@ -36,6 +36,11 @@ interface Point {
   y: number;
 }
 
+interface CellRef {
+  r: number;
+  c: number;
+}
+
 interface TileVisual {
   tile: Tile;
   from: Point;
@@ -213,13 +218,45 @@ function pointInTriangle(px: number, py: number, pts: Point[]) {
   return Math.abs(A - (A1 + A2 + A3)) < 0.5;
 }
 
-function cellAt(x: number, y: number) {
+function nearestCell(x: number, y: number): CellRef | null {
+  let best: CellRef | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+
   for (let r = 0; r < NUM_ROWS; r++) {
     for (let c = 0; c < NUM_COLS; c++) {
-      if (pointInTriangle(x, y, trianglePoints(r, c))) return { r, c };
+      const center = triangleCenter(r, c);
+      const dx = x - center.x;
+      const dy = y - center.y;
+      const dist = dx * dx + dy * dy;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { r, c };
+      }
     }
   }
-  return null;
+
+  return best;
+}
+
+function cellAt(x: number, y: number) {
+  const nearest = nearestCell(x, y);
+  if (!nearest) return null;
+
+  const candidates: CellRef[] = [nearest];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const r = nearest.r + dr;
+      const c = nearest.c + dc;
+      if (r >= 0 && r < NUM_ROWS && c >= 0 && c < NUM_COLS) candidates.push({ r, c });
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (pointInTriangle(x, y, trianglePoints(candidate.r, candidate.c))) return candidate;
+  }
+
+  return nearest;
 }
 
 function getHighlightSet(active: HighlightState | null) {
@@ -482,12 +519,22 @@ function flash(kindColor: string) {
 }
 
 function classifyDrag(dx: number, dy: number): DragKind | null {
-  const absX = Math.abs(dx);
-  const absY = Math.abs(dy);
-  if (Math.max(absX, absY) < 18) return null;
-  if (absX > absY * 1.35) return 'row';
-  if (dy > 12 && dx > 12) return 'sum';
-  if (dy > 12 && dx < -12) return 'diff';
+  const distance = Math.hypot(dx, dy);
+  if (distance < 20) return null;
+
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+  const DIAGONAL_DEAD_ZONE = 14;
+  const ROW_DEAD_ZONE = 16;
+
+  if (Math.abs(angle) <= ROW_DEAD_ZONE || Math.abs(Math.abs(angle) - 180) <= ROW_DEAD_ZONE) {
+    return 'row';
+  }
+
+  if (dy <= 0) return null;
+
+  if (Math.abs(angle - 60) <= DIAGONAL_DEAD_ZONE) return 'sum';
+  if (Math.abs(angle - 120) <= DIAGONAL_DEAD_ZONE) return 'diff';
+
   return null;
 }
 
@@ -538,7 +585,7 @@ canvas.addEventListener('pointerdown', (event) => {
   drag = { startX: x, startY: y, row: cell.r, col: cell.c, kind: null };
   highlight = { kind: 'row', row: cell.r, col: cell.c };
   canvas.setPointerCapture(event.pointerId);
-  setStatus(`Selected row ${cell.r + 1}`);
+  setStatus(`Triangle selected · row ${cell.r + 1}`);
   draw();
 });
 
@@ -550,14 +597,22 @@ canvas.addEventListener('pointermove', (event) => {
   const dx = x - drag.startX;
   const dy = y - drag.startY;
   const kind = classifyDrag(dx, dy);
-  if (kind) {
-    drag.kind = kind;
-    highlight = { kind, row: drag.row, col: drag.col };
-    if (kind === 'row') setStatus(`Row ${drag.row + 1} selected`);
-    if (kind === 'sum') setStatus('\\ diagonal selected');
-    if (kind === 'diff') setStatus('/ diagonal selected');
-    draw();
+
+  if (!kind) {
+    if (Math.hypot(dx, dy) >= 20) {
+      highlight = { kind: 'row', row: drag.row, col: drag.col };
+      setStatus('Drag left/right, down-right, or down-left');
+      draw();
+    }
+    return;
   }
+
+  drag.kind = kind;
+  highlight = { kind, row: drag.row, col: drag.col };
+  if (kind === 'row') setStatus(`Row ${drag.row + 1} selected`);
+  if (kind === 'sum') setStatus('\\ diagonal selected');
+  if (kind === 'diff') setStatus('/ diagonal selected');
+  draw();
 });
 
 canvas.addEventListener('pointerup', (event) => {
@@ -600,5 +655,5 @@ overlayReshuffle.addEventListener('click', () => {
   draw();
 });
 
-helpEl.textContent = 'Drag horizontally for rows, or drag down-left/down-right for diagonal moves. Valid moves now animate instead of snapping instantly.';
+helpEl.textContent = 'Drag horizontally for rows, or drag down-left/down-right for diagonal moves. Ambiguous angles now wait for a clearer swipe instead of guessing.';
 resetGame(hasValidMove(makeFreshGrid()) ? 'Ready' : 'New game ready');
