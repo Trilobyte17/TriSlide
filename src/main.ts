@@ -20,6 +20,8 @@ type DragKind = 'row' | 'sum' | 'diff';
 interface DragState {
   startX: number;
   startY: number;
+  currentX: number;
+  currentY: number;
   row: number;
   col: number;
   kind: DragKind | null;
@@ -496,12 +498,45 @@ function drawStaticBoard() {
   }
 }
 
+function drawGesturePreview(activeDrag: DragState) {
+  const start = triangleCenter(activeDrag.row, activeDrag.col);
+  const end = { x: activeDrag.currentX, y: activeDrag.currentY };
+  const previewKind = activeDrag.kind ?? classifyDrag(activeDrag.currentX - activeDrag.startX, activeDrag.currentY - activeDrag.startY);
+  const distance = Math.hypot(end.x - start.x, end.y - start.y);
+
+  if (distance < 8) return;
+
+  const previewColor = previewKind ? '#38bdf8' : 'rgba(248,250,252,0.45)';
+  ctx.save();
+  ctx.strokeStyle = previewColor;
+  ctx.fillStyle = previewColor;
+  ctx.lineWidth = 3;
+  ctx.setLineDash(previewKind ? [] : [6, 6]);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const head = 10;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(end.x, end.y);
+  ctx.lineTo(end.x - Math.cos(angle - Math.PI / 6) * head, end.y - Math.sin(angle - Math.PI / 6) * head);
+  ctx.lineTo(end.x - Math.cos(angle + Math.PI / 6) * head, end.y - Math.sin(angle + Math.PI / 6) * head);
+  ctx.closePath();
+  ctx.globalAlpha = 0.9;
+  ctx.fill();
+  ctx.restore();
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (animation) {
     drawAnimationFrame(animation);
   } else {
     drawStaticBoard();
+    if (drag) drawGesturePreview(drag);
   }
 }
 
@@ -582,7 +617,7 @@ canvas.addEventListener('pointerdown', (event) => {
   const y = event.clientY - rect.top;
   const cell = cellAt(x, y);
   if (!cell || isGameOver || animation) return;
-  drag = { startX: x, startY: y, row: cell.r, col: cell.c, kind: null };
+  drag = { startX: x, startY: y, currentX: x, currentY: y, row: cell.r, col: cell.c, kind: null };
   highlight = { kind: 'row', row: cell.r, col: cell.c };
   canvas.setPointerCapture(event.pointerId);
   setStatus(`Triangle selected · row ${cell.r + 1}`);
@@ -594,11 +629,14 @@ canvas.addEventListener('pointermove', (event) => {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
+  drag.currentX = x;
+  drag.currentY = y;
   const dx = x - drag.startX;
   const dy = y - drag.startY;
   const kind = classifyDrag(dx, dy);
 
   if (!kind) {
+    drag.kind = null;
     if (Math.hypot(dx, dy) >= 20) {
       highlight = { kind: 'row', row: drag.row, col: drag.col };
       setStatus('Drag left/right, down-right, or down-left');
