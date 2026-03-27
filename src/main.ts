@@ -503,6 +503,27 @@ function drawAnimationFrame(active: AnimationState) {
   }
 }
 
+function getDragPreviewOffset(activeDrag: DragState | null, r: number, c: number) {
+  if (!activeDrag || !activeDrag.kind) return { x: 0, y: 0 };
+  const selected = getHighlightSet({ kind: activeDrag.kind, row: activeDrag.row, col: activeDrag.col });
+  if (!selected.has(keyOf(r, c))) return { x: 0, y: 0 };
+
+  const dx = activeDrag.currentX - activeDrag.startX;
+  const dy = activeDrag.currentY - activeDrag.startY;
+
+  if (activeDrag.kind === 'row') {
+    const clamped = Math.max(-side * 0.45, Math.min(side * 0.45, dx * 0.45));
+    return { x: clamped, y: 0 };
+  }
+
+  const magnitude = Math.max(0, Math.min(triHeight * 0.45, Math.hypot(dx, dy) * 0.35));
+  if (activeDrag.kind === 'sum') {
+    return { x: magnitude * 0.5, y: magnitude * 0.86 };
+  }
+
+  return { x: -magnitude * 0.5, y: magnitude * 0.86 };
+}
+
 function drawStaticBoard() {
   const highlightSet = getHighlightSet(highlight);
   const flashing = Date.now() < flashUntil;
@@ -519,7 +540,7 @@ function drawStaticBoard() {
       ctx.lineTo(pts[1].x, pts[1].y);
       ctx.lineTo(pts[2].x, pts[2].y);
       ctx.closePath();
-      ctx.fillStyle = tile ? TILE_COLORS[tile.color] : '#111827';
+      ctx.fillStyle = '#111827';
       ctx.fill();
 
       if (selected) {
@@ -543,10 +564,9 @@ function drawStaticBoard() {
 
       if (tile) {
         const center = triangleCenter(r, c);
+        const offset = getDragPreviewOffset(drag, r, c);
         ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, selected ? 5 : 4, 0, Math.PI * 2);
-        ctx.fill();
+        drawTileAt(tile, { x: center.x + offset.x, y: center.y + offset.y }, tile.orientation, selected ? 0.98 : 1);
       }
     }
   }
