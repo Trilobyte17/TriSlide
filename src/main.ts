@@ -320,18 +320,16 @@ function lerp(a: number, b: number, t: number) {
 }
 
 function drawTileAt(tile: Tile, center: Point, orientation: Tile['orientation'], alpha = 1) {
-  const drawX = center.x - side / 2;
-  const drawY = center.y - triHeight / 2;
   const pts = orientation === 'up'
     ? [
-        { x: drawX + side / 2, y: drawY },
-        { x: drawX, y: drawY + triHeight },
-        { x: drawX + side, y: drawY + triHeight },
+        { x: center.x, y: center.y - (2 * triHeight) / 3 },
+        { x: center.x - side / 2, y: center.y + triHeight / 3 },
+        { x: center.x + side / 2, y: center.y + triHeight / 3 },
       ]
     : [
-        { x: drawX, y: drawY },
-        { x: drawX + side, y: drawY },
-        { x: drawX + side / 2, y: drawY + triHeight },
+        { x: center.x - side / 2, y: center.y - triHeight / 3 },
+        { x: center.x + side / 2, y: center.y - triHeight / 3 },
+        { x: center.x, y: center.y + (2 * triHeight) / 3 },
       ];
 
   ctx.save();
