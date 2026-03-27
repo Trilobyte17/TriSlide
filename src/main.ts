@@ -240,6 +240,16 @@ function nearestCell(x: number, y: number): CellRef | null {
   return best;
 }
 
+function canvasPoint(event: PointerEvent) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY,
+  };
+}
+
 function cellAt(x: number, y: number) {
   const nearest = nearestCell(x, y);
   if (!nearest) return null;
@@ -684,9 +694,7 @@ function applyDragMove(state: DragState, dx: number, dy: number) {
 }
 
 canvas.addEventListener('pointerdown', (event) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  const { x, y } = canvasPoint(event);
   const cell = cellAt(x, y);
   if (!cell || isGameOver || animation) return;
   drag = { startX: x, startY: y, currentX: x, currentY: y, row: cell.r, col: cell.c, kind: null };
@@ -698,9 +706,7 @@ canvas.addEventListener('pointerdown', (event) => {
 
 canvas.addEventListener('pointermove', (event) => {
   if (!drag || animation) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  const { x, y } = canvasPoint(event);
   drag.currentX = x;
   drag.currentY = y;
   const dx = x - drag.startX;
@@ -727,9 +733,7 @@ canvas.addEventListener('pointermove', (event) => {
 
 canvas.addEventListener('pointerup', (event) => {
   if (!drag) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
+  const { x, y } = canvasPoint(event);
   const dx = x - drag.startX;
   const dy = y - drag.startY;
   applyDragMove(drag, dx, dy);
