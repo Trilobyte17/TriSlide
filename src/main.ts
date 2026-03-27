@@ -273,6 +273,34 @@ function getHighlightSet(active: HighlightState | null) {
   return set;
 }
 
+function getHighlightColors(active: HighlightState | null) {
+  if (!active) {
+    return {
+      fill: 'rgba(248,250,252,0.08)',
+      stroke: '#f8fafc',
+    };
+  }
+
+  if (active.kind === 'row') {
+    return {
+      fill: 'rgba(56,189,248,0.22)',
+      stroke: '#38bdf8',
+    };
+  }
+
+  if (active.kind === 'sum') {
+    return {
+      fill: 'rgba(168,85,247,0.22)',
+      stroke: '#c084fc',
+    };
+  }
+
+  return {
+    fill: 'rgba(34,197,94,0.22)',
+    stroke: '#4ade80',
+  };
+}
+
 function getGridTileMap(source: GridData) {
   const map = new Map<string, Tile>();
   for (const row of source) {
@@ -409,6 +437,7 @@ function tickAnimation() {
 function drawBoardBase() {
   const highlightSet = getHighlightSet(highlight);
   const flashing = Date.now() < flashUntil;
+  const highlightColors = getHighlightColors(highlight);
 
   for (let r = 0; r < NUM_ROWS; r++) {
     for (let c = 0; c < NUM_COLS; c++) {
@@ -420,11 +449,19 @@ function drawBoardBase() {
       ctx.lineTo(pts[1].x, pts[1].y);
       ctx.lineTo(pts[2].x, pts[2].y);
       ctx.closePath();
-      ctx.fillStyle = '#111827';
+      ctx.fillStyle = selected ? highlightColors.fill : '#111827';
       ctx.fill();
-      ctx.lineWidth = selected ? 3 : 1;
-      ctx.strokeStyle = selected ? (flashing ? flashColor : '#f8fafc') : '#334155';
-      ctx.stroke();
+      ctx.lineWidth = selected ? 4 : 1;
+      ctx.strokeStyle = selected ? (flashing ? flashColor : highlightColors.stroke) : '#334155';
+      if (selected) {
+        ctx.save();
+        ctx.shadowColor = highlightColors.stroke;
+        ctx.shadowBlur = 14;
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.stroke();
+      }
     }
   }
 }
@@ -469,6 +506,7 @@ function drawAnimationFrame(active: AnimationState) {
 function drawStaticBoard() {
   const highlightSet = getHighlightSet(highlight);
   const flashing = Date.now() < flashUntil;
+  const highlightColors = getHighlightColors(highlight);
 
   for (let r = 0; r < NUM_ROWS; r++) {
     for (let c = 0; c < NUM_COLS; c++) {
@@ -483,15 +521,31 @@ function drawStaticBoard() {
       ctx.closePath();
       ctx.fillStyle = tile ? TILE_COLORS[tile.color] : '#111827';
       ctx.fill();
-      ctx.lineWidth = selected ? 3 : 1;
-      ctx.strokeStyle = selected ? (flashing ? flashColor : '#f8fafc') : '#334155';
-      ctx.stroke();
+
+      if (selected) {
+        ctx.save();
+        ctx.fillStyle = highlightColors.fill;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.lineWidth = selected ? 4 : 1;
+      ctx.strokeStyle = selected ? (flashing ? flashColor : highlightColors.stroke) : '#334155';
+      if (selected) {
+        ctx.save();
+        ctx.shadowColor = highlightColors.stroke;
+        ctx.shadowBlur = 14;
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.stroke();
+      }
 
       if (tile) {
         const center = triangleCenter(r, c);
         ctx.fillStyle = 'rgba(255,255,255,0.92)';
         ctx.beginPath();
-        ctx.arc(center.x, center.y, 4, 0, Math.PI * 2);
+        ctx.arc(center.x, center.y, selected ? 5 : 4, 0, Math.PI * 2);
         ctx.fill();
       }
     }
