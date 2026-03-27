@@ -583,7 +583,8 @@ function drawStaticBoard() {
 function drawGesturePreview(activeDrag: DragState) {
   const start = triangleCenter(activeDrag.row, activeDrag.col);
   const end = { x: activeDrag.currentX, y: activeDrag.currentY };
-  const previewKind = activeDrag.kind ?? classifyDrag(activeDrag.currentX - activeDrag.startX, activeDrag.currentY - activeDrag.startY);
+  const previewIntent = getDragIntent(activeDrag.currentX - activeDrag.startX, activeDrag.currentY - activeDrag.startY);
+  const previewKind = activeDrag.kind ?? previewIntent?.kind ?? null;
   const distance = Math.hypot(end.x - start.x, end.y - start.y);
 
   if (distance < 8) return;
@@ -635,29 +636,38 @@ function flash(kindColor: string) {
   }, 150);
 }
 
-function classifyDrag(dx: number, dy: number): DragKind | null {
+function getDragIntent(dx: number, dy: number): { kind: DragKind; projection: number } | null {
   const distance = Math.hypot(dx, dy);
   if (distance < 20) return null;
 
-  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-  const DIAGONAL_DEAD_ZONE = 14;
-  const ROW_DEAD_ZONE = 16;
+  const nx = dx / distance;
+  const ny = dy / distance;
+  const axes: { kind: DragKind; x: number; y: number }[] = [
+    { kind: 'row', x: 1, y: 0 },
+    { kind: 'sum', x: 0.5, y: Math.sqrt(3) / 2 },
+    { kind: 'diff', x: -0.5, y: Math.sqrt(3) / 2 },
+  ];
 
-  if (Math.abs(angle) <= ROW_DEAD_ZONE || Math.abs(Math.abs(angle) - 180) <= ROW_DEAD_ZONE) {
-    return 'row';
+  let best: { kind: DragKind; projection: number } | null = null;
+  let bestAbsProjection = 0;
+
+  for (const axis of axes) {
+    const projection = nx * axis.x + ny * axis.y;
+    const absProjection = Math.abs(projection);
+    if (absProjection > bestAbsProjection) {
+      bestAbsProjection = absProjection;
+      best = { kind: axis.kind, projection };
+    }
   }
 
-  if (dy <= 0) return null;
-
-  if (Math.abs(angle - 60) <= DIAGONAL_DEAD_ZONE) return 'sum';
-  if (Math.abs(angle - 120) <= DIAGONAL_DEAD_ZONE) return 'diff';
-
-  return null;
+  if (!best || bestAbsProjection < 0.82) return null;
+  return best;
 }
 
 function applyDragMove(state: DragState, dx: number, dy: number) {
   if (isGameOver || animation) return;
-  const kind = state.kind ?? classifyDrag(dx, dy);
+  const intent = (state.kind ? { kind: state.kind, projection: 0 } : getDragIntent(dx, dy));
+  const kind = intent?.kind ?? null;
   if (!kind) {
     setStatus('Drag farther to make a move');
     highlight = null;
@@ -668,12 +678,12 @@ function applyDragMove(state: DragState, dx: number, dy: number) {
   let result;
 
   if (kind === 'row') {
-    const dir: RowDirection = dx < 0 ? 'left' : 'right';
+    const dir: RowDirection = (intent?.projection ?? dx) < 0 ? 'left' : 'right';
     result = processMove(grid, 'row', state.row, dir, 1);
     highlight = { kind, row: state.row, col: state.col };
     setStatus(`Row ${state.row + 1} ${dir}`);
   } else {
-    const dir: SlideDirection = dy < 0 ? 'backward' : 'forward';
+    const dir: SlideDirection = (intent?.projection ?? dy) < 0 ? 'backward' : 'forward';
     result = processMove(grid, kind, { r: state.row, c: state.col }, dir, 1);
     highlight = { kind, row: state.row, col: state.col };
     setStatus(`${kind === 'sum' ? '\\' : '/'} diagonal ${dir}`);
@@ -711,23 +721,23 @@ canvas.addEventListener('pointermove', (event) => {
   drag.currentY = y;
   const dx = x - drag.startX;
   const dy = y - drag.startY;
-  const kind = classifyDrag(dx, dy);
+  const intent = getDragIntent(dx, dy);
 
-  if (!kind) {
+  if (!intent) {
     drag.kind = null;
     if (Math.hypot(dx, dy) >= 20) {
       highlight = { kind: 'row', row: drag.row, col: drag.col };
-      setStatus('Drag left/right, down-right, or down-left');
+      setStatus('Drag left/right or along either diagonal');
       draw();
     }
     return;
   }
 
-  drag.kind = kind;
-  highlight = { kind, row: drag.row, col: drag.col };
-  if (kind === 'row') setStatus(`Row ${drag.row + 1} selected`);
-  if (kind === 'sum') setStatus('\\ diagonal selected');
-  if (kind === 'diff') setStatus('/ diagonal selected');
+  drag.kind = intent.kind;
+  highlight = { kind: intent.kind, row: drag.row, col: drag.col };
+  if (intent.kind === 'row') setStatus(`Row ${drag.row + 1} selected`);
+  if (intent.kind === 'sum') setStatus(`\\ diagonal selected · ${intent.projection < 0 ? 'backward' : 'forward'}`);
+  if (intent.kind === 'diff') setStatus(`/ diagonal selected · ${intent.projection < 0 ? 'backward' : 'forward'}`);
   draw();
 });
 
